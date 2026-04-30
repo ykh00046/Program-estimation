@@ -181,6 +181,20 @@ Status colors: green `#2ECC71`, amber-warning `#F5A623`, red `#FF4D4F`. Error fi
 ### Cards
 A card is `#141A23` (`SURFACE_ALT`) fill, `1px solid rgba(255,255,255,0.06)` border, `14px` radius, **no shadow** (with the one MintInfoCard exception above). They sit directly on the gradient background. Card padding is content-driven: 32×26 for hero, 14×10 for toolbar, 20×15 for KPI.
 
+### KPI variants
+There are two KPI cards and they are intentionally different — the divergence is the design language, not an inconsistency:
+
+| | InfoCard (neutral) | MintInfoCard (accent) |
+|---|---|---|
+| Use | Static counts (today's batches, totals) | Live/progress KPIs (current run %, target weight) |
+| Value color | `--text-primary` `#F5F7FA` | `--accent` `#E3A12F` |
+| Value size | `--fs-kpi` **32px** / 800 | `--fs-kpi-accent` **30px** / 800 — 2px smaller to leave room for the progress bar without changing card height |
+| Title tracking | `--tracking-caption` 0.6px | `--tracking-kpi` 0.5px — slightly tighter to compensate for the warmer color reading "louder" |
+| Progress bar | none | 4px bar pinned to bottom |
+| Shadow | none | `--shadow-amber-glow` |
+
+If you ever introduce a third KPI, pick one of the two patterns rather than inventing a third size/tracking pair.
+
 ### Layout rules
 - **FluentWindow** shell: 280px collapsible left sidebar, content area fills the rest. Sidebar collapses to `~48px` on hover-out (when `sidebar.hover_expand` is on).
 - **Default window size**: 1200×800. The amount-entry primary screen is designed at this size; deeper screens (record view, recipe manager) tolerate resizing up.

@@ -108,7 +108,8 @@
   --fs-h3: 18px;
   --fs-h2: 24px;             /* recipe management title */
   --fs-h1: 30px;             /* "Welcome Back!" */
-  --fs-kpi: 32px;            /* InfoCard value */
+  --fs-kpi: 32px;            /* InfoCard value (neutral KPI) */
+  --fs-kpi-accent: 30px;     /* MintInfoCard value (amber, with progress bar) */
 
   --fw-medium: 500;
   --fw-semibold: 600;
@@ -118,8 +119,8 @@
   --tracking-tight: -0.5px;  /* h1 only */
   --tracking-normal: 0;
   --tracking-label: 0.3px;   /* uppercase form labels */
-  --tracking-kpi: 0.5px;     /* KPI title */
-  --tracking-caption: 0.6px; /* InfoCard title */
+  --tracking-kpi: 0.5px;     /* MintInfoCard title (amber KPI) */
+  --tracking-caption: 0.6px; /* InfoCard title (neutral KPI) */
 }
 
 /* --------------------------------------------------------------------------
