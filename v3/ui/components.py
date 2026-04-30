@@ -81,7 +81,7 @@ class LabeledField(QWidget):
         # 라벨 설정
         label = QLabel(self.label_text.upper())
         if self.required:
-            label.setText(f"{self.label_text} <span style='color: {UITheme.MINT_ACCENT};'>*</span>")
+            label.setText(f"{self.label_text.upper()} <span style='color: {UITheme.MINT_ACCENT};'>*</span>")
         
         label.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY}; font-size: 11px; font-weight: 700; letter-spacing: 0.3px;")
         
