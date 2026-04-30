@@ -160,6 +160,33 @@ v3/main/
 
 ---
 
+## Design System (SSOT)
+
+UI 디자인 토큰의 SSOT는 두 곳이며, 두 위치는 항상 정렬되어야 한다.
+
+| 위치 | 형태 | 우선순위 |
+|---|---|---|
+| `v3/ui/styles.py` (`UITheme` 클래스) | Python 상수 — PySide6 stylesheet에서 사용 | **런타임 진실(SSOT)** |
+| `v3/docs/design-system/colors_and_type.css` | CSS 커스텀 프로퍼티 + HTML 프리뷰 | 참조용 미러 |
+
+### 새 UI 코드 작성 시 규칙
+
+- 색·간격·radius·폰트는 **반드시 `UITheme`의 기존 토큰 사용**. 새 색을 직접 적어 넣지 말 것.
+- 시각 의도가 헷갈릴 때는 `v3/docs/design-system/preview/*.html`을 열어 정답 시안을 확인.
+- `ui_kits/desktop/index.html`은 메인 화면 3종(배합·로그인·DHR 관리) 웹 재현본 — 새 화면 디자인의 출발점으로 활용 가능.
+
+### 토큰 명명 주의
+
+소스 코드의 `MINT_*` 접두어는 레거시 명명이다. **실제 색은 앰버/골드 (`#E3A12F`)** 이며 민트/틸이 아니다. **민트/틸 계열을 새로 도입하지 말 것.**
+
+### 두 SSOT가 어긋날 때
+
+1. `styles.py`(런타임)가 옳다고 가정.
+2. `design-system/colors_and_type.css`를 그쪽에 맞게 갱신.
+3. 정렬 작업은 PDCA 사이클로 추적 (`design_system_alignment_audit` 류).
+
+---
+
 ## Data Model
 
 ### mixing_records (배합 기록)
