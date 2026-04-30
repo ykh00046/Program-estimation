@@ -1,0 +1,1 @@
+Step A (cost-snapshot-timestamp) — 작은 cycle. 또는 review만 하고 break

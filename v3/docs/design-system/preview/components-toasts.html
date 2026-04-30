@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Components — Toasts</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg-window); display: flex; flex-direction: column; gap: 10px; }
+  .toast { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: #141A23; border: 1px solid; min-width: 360px; max-width: 560px; }
+  .ico { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+  .ti { font-size: 13px; font-weight: 700; color: #F5F7FA; margin-bottom: 2px; }
+  .tc { font-size: 12px; color: #C2CAD8; }
+  .success { border-color: rgba(46,204,113,0.4); }
+  .success .ico { color: #2ECC71; }
+  .warning { border-color: rgba(245,166,35,0.4); }
+  .warning .ico { color: #F5A623; }
+  .error { border-color: rgba(255,77,79,0.4); }
+  .error .ico { color: #FF4D4F; }
+</style></head>
+<body>
+  <div class="toast success"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><div><div class="ti">저장 완료</div><div class="tc">LOT: A2026-0142 저장이 완료되었습니다.</div></div></div>
+  <div class="toast warning"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.41 0zM12 9v4M12 17h.01"/></svg><div><div class="ti">입력 오류</div><div class="tc">배합량을 먼저 설정해주세요!</div></div></div>
+  <div class="toast error"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><div><div class="ti">저장 실패</div><div class="tc">저장 중 오류가 발생했습니다: connection refused.</div></div></div>
+</body></html>

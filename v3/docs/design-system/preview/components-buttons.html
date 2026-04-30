@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Components — Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg-window); display: flex; flex-direction: column; gap: 14px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; color: var(--text-secondary); text-transform: uppercase; min-width: 80px; }
+  button { font-family: inherit; font-size: 14px; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; }
+  .primary { background: linear-gradient(90deg,#F2C066,#D9901E); color: #1A1206; font-weight: 700; }
+  .primary:hover { background: linear-gradient(90deg,#FFD07A,#E3A12F); }
+  .primary:disabled { background: rgba(227,161,47,0.18); color: #F5F7FA; border: 1px solid rgba(227,161,47,0.35); }
+  .secondary { background: transparent; color: #C2CAD8; border: 1px solid rgba(255,255,255,0.08); font-weight: 500; font-size: 13px; }
+  .secondary:hover { background: rgba(255,255,255,0.08); color: #F5F7FA; border-color: #C2CAD8; }
+  .danger { background: transparent; color: #FF4D4F; border: 1px solid #FF4D4F; font-weight: 600; font-size: 13px; }
+  .danger:hover { background: rgba(239,68,68,0.10); }
+</style></head>
+<body>
+  <div class="row"><span class="label">Primary</span>
+    <button class="primary">배합 저장</button>
+    <button class="primary">기록 조회 열기</button>
+    <button class="primary" disabled>저장</button>
+  </div>
+  <div class="row"><span class="label">Secondary</span>
+    <button class="secondary">LOT 자동 배정</button>
+    <button class="secondary">초기화 (Ctrl+R)</button>
+    <button class="secondary">Cancel</button>
+  </div>
+  <div class="row"><span class="label">Danger</span>
+    <button class="danger">삭제</button>
+  </div>
+</body></html>

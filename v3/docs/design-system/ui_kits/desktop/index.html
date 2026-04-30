@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>DHR 배합 프로그램 — Desktop UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg-window);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+    gap: 32px;
+  }
+
+  /* ============ App shell — emulates FluentWindow at 1200×800 ============ */
+  .app {
+    width: 1200px;
+    height: 800px;
+    background: var(--bg-window);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: 36px 1fr;
+    grid-template-areas:
+      "title title"
+      "nav   main";
+    position: relative;
+  }
+  .titlebar {
+    grid-area: title;
+    background: #0A0D12;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .titlebar .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(227,161,47,0.55);
+  }
+  .titlebar .title { font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px; }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .winbtn {
+    width: 32px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+  }
+  .titlebar .winbtn svg { width: 12px; height: 12px; }
+
+  /* ============ Sidebar nav ============ */
+  .nav {
+    grid-area: nav;
+    background: #0C0F14;
+    padding: 14px 0 12px;
+    border-right: 1px solid var(--border-subtle);
+    display: flex; flex-direction: column;
+  }
+  .nav .nav-header {
+    padding: 0 18px 14px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.6;
+  }
+  .nav .item {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 14px;
+    margin: 2px 6px;
+    border-radius: var(--radius-xs);
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .nav .item .ico { width: 18px; height: 18px; opacity: 0.85; flex-shrink: 0; }
+  .nav .item:hover { background: var(--accent-12); color: var(--text-primary); }
+  .nav .item.active {
+    background: var(--accent-18);
+    color: var(--accent);
+    font-weight: 700;
+    border-left: 3px solid var(--accent);
+    padding-left: 11px;
+  }
+  .nav .nav-spacer { flex: 1; }
+  .nav .footer-item {
+    margin: 2px 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-subtle-light);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .nav .footer-item .avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent-gradient);
+    color: var(--text-on-accent);
+    font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+
+  /* ============ Main page (Mixing) ============ */
+  .main {
+    grid-area: main;
+    padding: 22px 28px 0;
+    display: flex; flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+  }
+  .page-title-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .page-title-row h1 { font-size: 24px; font-weight: 700; }
+  .page-title-row .crumbs { font-size: 12px; color: var(--text-secondary); }
+  .crumbs .sep { opacity: 0.5; padding: 0 6px; }
+
+  /* KPI row */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi-card {
+    background: var(--surface-alt);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    min-height: 100px;
+  }
+  .kpi-card.glow { box-shadow: var(--shadow-amber-glow); }
+  .kpi-card .kpi-title {
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .kpi-card .kpi-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+  .kpi-card .kpi-value.accent { color: var(--accent); }
+  .kpi-card .kpi-foot {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .kpi-card .bar {
+    height: 4px; background: rgba(255,255,255,0.08);
+    border-radius: 2px; overflow: hidden;
+    margin-top: 4px;
+  }
+  .kpi-card .bar > div { height: 100%; background: var(--accent); }
+
+  /* Two-column body: left form / right table */
+  .body-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface-alt);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 22px 22px 20px;
+    display: flex; flex-direction: column; gap: 14px;
+    overflow: hidden;
+  }
+  .card .card-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+  }
+  .card .card-title .accent-rule {
+    width: 24px; height: 2px;
+    background: var(--accent);
+  }
+
+  /* Form fields */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field .label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+  .field .label .star { color: var(--accent); }
+  .field input, .field select {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    outline: none;
+    transition: none;
+  }
+  .field input:focus {
+    border-color: var(--accent);
+    background: var(--accent-08);
+  }
+  .field .amount {
+    font-size: 17px;
+    font-weight: 600;
+    text-align: right;
+  }
+  .field .with-unit {
+    position: relative;
+  }
+  .field .with-unit .unit {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Buttons */
+  .btn {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn.primary {
+    background: var(--accent-gradient);
+    color: var(--text-on-accent);
+    font-weight: 700;
+    min-height: 44px;
+  }
+  .btn.primary:hover { background: var(--accent-gradient-hover); }
+  .btn.secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .btn.secondary:hover {
+    background: var(--field-bg);
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+  }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { flex: 1; }
+
+  /* Material table card */
+  .table-card {
+    padding: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .table-toolbar {
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .table-toolbar .title {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .table-toolbar .meta {
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .table-toolbar .spacer { flex: 1; }
+  .table-toolbar .pill {
+    background: var(--accent-12);
+    color: var(--accent);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  table.dt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.dt th {
+    background: #10141B;
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+  }
+  table.dt th.num { text-align: right; }
+  table.dt td {
+    padding: 12px;
+    height: 48px;
+    border-bottom: 1px solid var(--border-subtle-light);
+    color: var(--text-primary);
+  }
+  table.dt td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.dt td.lot-cell {
+    background: var(--accent-highlight-bg);
+    font-family: 'Cascadia Mono', ui-monospace, monospace;
+    font-size: 12px;
+  }
+  table.dt tr.selected td {
+    background: var(--accent-22);
+    color: var(--accent);
+  }
+  table.dt tr.selected td.lot-cell {
+    background: var(--error-highlight-bg);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--text-primary);
+  }
+  table.dt tr:hover:not(.selected) td { background: var(--accent-12); }
+
+  /* Status bar */
+  .statusbar {
+    height: 28px;
+    border-top: 1px solid var(--border-subtle);
+    margin: 0 -28px;
+    padding: 0 28px;
+    display: flex; align-items: center; gap: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: rgba(0,0,0,0.18);
+  }
+  .statusbar .sep { opacity: 0.4; }
+  .statusbar .spacer { flex: 1; }
+  .statusbar .gs-indicator {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .statusbar .gs-indicator .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+  }
+  .statusbar .clock { font-variant-numeric: tabular-nums; }
+
+  /* Floating toast */
+  .toast {
+    position: absolute;
+    top: 56px;
+    right: 24px;
+    background: #141A23;
+    border: 1px solid rgba(46,204,113,0.4);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex; gap: 12px; align-items: flex-start;
+    min-width: 320px; max-width: 420px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    z-index: 5;
+  }
+  .toast .ico { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; margin-top: 1px; }
+  .toast .ti { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+  .toast .tc { font-size: 12px; color: var(--text-secondary); }
+
+  /* Section labels above app frames */
+  .section-label {
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    align-self: center;
+    margin-bottom: -16px;
+  }
+  .section-label .accent-rule {
+    display: inline-block;
+    width: 32px; height: 2px;
+    background: var(--accent);
+    margin-right: 12px;
+    transform: translateY(-3px);
+  }
+
+  /* ============ Worker dialog (sign-in) ============ */
+  .modal-host {
+    width: 1200px;
+    height: 540px;
+    background: var(--bg-window);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-subtle);
+    position: relative;
+    overflow: hidden;
+  }
+  .modal-host::before {
+    content: ""; position: absolute; inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(2px);
+  }
+  .modal {
+    position: absolute;
+    left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 480px;
+    background: #141A23;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: 36px 36px 32px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .modal h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+  .modal .sub {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .modal .worker-list {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 4px;
+  }
+  .modal .worker {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 14px;
+    background: var(--field-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .modal .worker.active {
+    background: var(--accent-08);
+    border-color: var(--accent);
+  }
+  .modal .worker .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent-gradient);
+    color: var(--text-on-accent);
+    font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .modal .worker .who { display: flex; flex-direction: column; gap: 2px; }
+  .modal .worker .who .name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .modal .worker .who .role { font-size: 11px; color: var(--text-secondary); letter-spacing: 0.3px; text-transform: uppercase; }
+  .modal .worker .check { margin-left: auto; opacity: 0; }
+  .modal .worker.active .check { opacity: 1; color: var(--accent); }
+  .modal .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .modal .modal-actions .btn { flex: 1; }
+
+  /* ============ DHR management split-pane ============ */
+  .split {
+    width: 1200px;
+    height: 620px;
+    background: var(--bg-window);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+  }
+  .split .left {
+    background: #10141B;
+    border-right: 1px solid var(--border-subtle);
+    display: flex; flex-direction: column;
+  }
+  .split .left-toolbar {
+    padding: 16px 18px 10px;
+    display: flex; flex-direction: column; gap: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .split .left-toolbar h2 { font-size: 18px; font-weight: 700; }
+  .split .search {
+    position: relative;
+  }
+  .split .search input {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 12px 8px 36px;
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    outline: none;
+  }
+  .split .search .search-ico {
+    position: absolute;
+    left: 11px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px;
+    color: var(--text-secondary);
+  }
+  .split .recipe-list {
+    flex: 1;
+    overflow: auto;
+    padding: 6px 8px;
+  }
+  .split .recipe-list .item {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 3px;
+    border-left: 3px solid transparent;
+    margin-bottom: 2px;
+  }
+  .split .recipe-list .item:hover { background: var(--accent-12); }
+  .split .recipe-list .item.active {
+    background: var(--accent-18);
+    border-left-color: var(--accent);
+  }
+  .split .recipe-list .item .name {
+    font-size: 14px; font-weight: 600;
+    color: var(--text-primary);
+  }
+  .split .recipe-list .item.active .name { color: var(--accent); }
+  .split .recipe-list .item .meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+  }
+  .split .right {
+    padding: 22px 26px;
+    display: flex; flex-direction: column; gap: 16px;
+    overflow: auto;
+  }
+  .split .right .header {
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .split .right .header h2 { font-size: 22px; font-weight: 700; }
+  .split .right .header .sub {
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .split .right .grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .split .right .totals {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    padding: 14px 16px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+  }
+  .split .right .totals .t {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .split .right .totals .t .l {
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .split .right .totals .t .v {
+    font-size: 17px; font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .split .right .totals .t .v.accent { color: var(--accent); }
+
+  /* Bottom legend */
+  .legend {
+    width: 1200px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 22px 28px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+  .legend .l-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    color: var(--text-primary); text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .legend code {
+    color: var(--accent);
+    font-family: 'Cascadia Mono', ui-monospace, monospace;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============================================================
+       SCREEN 1 — Mixing page (the main work surface)
+       ============================================================ -->
+  <div class="section-label"><span class="accent-rule"></span>SCREEN 01 — 배합 (MIXING)</div>
+  <div class="app">
+    <!-- Title bar -->
+    <div class="titlebar">
+      <span class="dot"></span>
+      <span class="title">DHR 배합 프로그램 v3</span>
+      <span style="opacity:0.4">— 작업자: 김철수</span>
+      <span class="spacer"></span>
+      <span class="winbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      <span class="winbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14"/></svg></span>
+      <span class="winbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></span>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="nav">
+      <div class="nav-header">Workspace</div>
+      <div class="item active">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v3l-5 9a4 4 0 0 0 4 6h8a4 4 0 0 0 4-6L15 6V3"/><path d="M9 3h6"/></svg>
+        배합
+      </div>
+      <div class="item">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        수기 입력
+      </div>
+      <div class="item">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+        일괄 생성
+      </div>
+      <div class="item">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        DHR 관리
+      </div>
+      <div class="item">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+        기록 조회
+      </div>
+      <div class="nav-spacer"></div>
+      <div class="item">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        설정
+      </div>
+      <div class="footer-item">
+        <span class="avatar">김</span>
+        <div style="display:flex;flex-direction:column">
+          <span style="font-size:13px;color:var(--text-primary);font-weight:600">김철수</span>
+          <span style="font-size:10px;letter-spacing:0.4px;text-transform:uppercase">작업자 변경</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="page-title-row">
+        <h1>배합 (Mixing)</h1>
+        <div class="crumbs">홈<span class="sep">/</span>배합<span class="sep">/</span><span style="color:var(--accent)">새 작업</span></div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <span class="kpi-title">오늘 배합 건수</span>
+          <span class="kpi-value">14</span>
+          <span class="kpi-foot">+3 vs 어제</span>
+        </div>
+        <div class="kpi-card glow">
+          <span class="kpi-title">진행률</span>
+          <span class="kpi-value accent">78%</span>
+          <div class="bar"><div style="width:78%"></div></div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">기본 스케일</span>
+          <span class="kpi-value" style="font-size:24px">M-65</span>
+          <span class="kpi-foot">허용오차 ±0.05</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">미저장 LOT</span>
+          <span class="kpi-value" style="color:var(--warning)">2</span>
+          <span class="kpi-foot">자동 저장 대기 중</span>
+        </div>
+      </div>
+
+      <!-- Two-column body -->
+      <div class="body-grid">
+        <!-- LEFT: Recipe + amount + actions -->
+        <section class="card">
+          <div class="card-title"><span class="accent-rule"></span>작업 정보</div>
+
+          <div class="field">
+            <span class="label">레시피 <span class="star">*</span></span>
+            <select>
+              <option>DHR-A-2024 / 베이스 폴리머 12.5kg</option>
+              <option>DHR-B-2024 / 가소제 혼합 8.0kg</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <span class="label">배합 중량 (g) <span class="star">*</span></span>
+            <div class="with-unit">
+              <input class="amount" value="12,500.00" />
+              <span class="unit">g</span>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <span class="label">작업일</span>
+              <input value="2026-04-15" />
+            </div>
+            <div class="field">
+              <span class="label">배치 #</span>
+              <input value="A2026-0142" />
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="label">메모</span>
+            <input placeholder="입력하세요…" />
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div class="btn-row">
+            <button class="btn secondary">초기화 (Ctrl+R)</button>
+            <button class="btn secondary">LOT 자동 배정</button>
+          </div>
+          <button class="btn primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 12 2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+            배합 저장
+          </button>
+        </section>
+
+        <!-- RIGHT: Material list table -->
+        <section class="card table-card">
+          <div class="table-toolbar">
+            <span class="title">자재 목록</span>
+            <span class="meta">4개 자재 · 비율 합계 100.00%</span>
+            <span class="spacer"></span>
+            <span class="pill">SCANNING</span>
+          </div>
+          <table class="dt">
+            <thead>
+              <tr>
+                <th>품목코드</th>
+                <th>품목명</th>
+                <th class="num">비율(%)</th>
+                <th class="num">이론(g)</th>
+                <th>자재 LOT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>M-001</td><td>베이스 폴리머</td>
+                <td class="num">62.50</td>
+                <td class="num">7,812.500</td>
+                <td class="lot-cell">P-26041501</td>
+              </tr>
+              <tr class="selected">
+                <td>M-014</td><td>가소제 A</td>
+                <td class="num">22.30</td>
+                <td class="num">2,787.500</td>
+                <td class="lot-cell">_______________</td>
+              </tr>
+              <tr>
+                <td>M-027</td><td>안정제 BX</td>
+                <td class="num">12.20</td>
+                <td class="num">1,525.000</td>
+                <td class="lot-cell">S-26031288</td>
+              </tr>
+              <tr>
+                <td>M-099</td><td>안료 (옐로우)</td>
+                <td class="num">3.00</td>
+                <td class="num">375.000</td>
+                <td class="lot-cell">Y-26040917</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- Status bar -->
+      <div class="statusbar">
+        <span>기본 스케일: M-65</span>
+        <span class="sep">|</span>
+        <span>허용오차: ±0.05</span>
+        <span class="sep">|</span>
+        <span style="color:var(--success)">테이블이 초기화되었습니다.</span>
+        <span class="spacer"></span>
+        <span class="gs-indicator"><span class="dot"></span>Google Sheets · 동기화 완료</span>
+        <span class="sep">|</span>
+        <span class="clock">14:22:08</span>
+      </div>
+    </main>
+
+    <!-- Floating success toast (InfoBar) -->
+    <div class="toast">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      <div>
+        <div class="ti">저장 완료</div>
+        <div class="tc">LOT: A2026-0142 저장이 완료되었습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN 2 — Worker sign-in dialog (frameless 16px modal)
+       ============================================================ -->
+  <div class="section-label"><span class="accent-rule"></span>SCREEN 02 — 작업자 선택 (SIGN-IN DIALOG)</div>
+  <div class="modal-host">
+    <div class="modal">
+      <div>
+        <h1>Welcome Back!</h1>
+        <div class="sub" style="margin-top:6px">작업을 시작하려면 작업자를 선택하세요</div>
+      </div>
+      <div class="worker-list">
+        <div class="worker active">
+          <span class="avatar">김</span>
+          <div class="who"><span class="name">김철수</span><span class="role">시니어 오퍼레이터</span></div>
+          <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <div class="worker">
+          <span class="avatar" style="background:#3A475C">이</span>
+          <div class="who"><span class="name">이영희</span><span class="role">오퍼레이터</span></div>
+          <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <div class="worker">
+          <span class="avatar" style="background:#3A475C">박</span>
+          <div class="who"><span class="name">박민수</span><span class="role">오퍼레이터</span></div>
+          <svg class="check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn secondary">취소</button>
+        <button class="btn primary">시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN 3 — DHR 관리 (split-pane recipe library + editor)
+       ============================================================ -->
+  <div class="section-label"><span class="accent-rule"></span>SCREEN 03 — DHR 관리 (RECIPE LIBRARY)</div>
+  <div class="split">
+    <aside class="left">
+      <div class="left-toolbar">
+        <h2>레시피 목록</h2>
+        <div class="search">
+          <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input placeholder="검색하세요…" />
+        </div>
+      </div>
+      <div class="recipe-list">
+        <div class="item active">
+          <span class="name">DHR-A-2024</span>
+          <span class="meta">베이스 폴리머 · 4 자재 · 12.5kg</span>
+        </div>
+        <div class="item">
+          <span class="name">DHR-B-2024</span>
+          <span class="meta">가소제 혼합 · 5 자재 · 8.0kg</span>
+        </div>
+        <div class="item">
+          <span class="name">DHR-C-2024</span>
+          <span class="meta">안료 그룹 · 3 자재 · 2.5kg</span>
+        </div>
+        <div class="item">
+          <span class="name">DHR-D-2024</span>
+          <span class="meta">코팅제 · 6 자재 · 15.0kg</span>
+        </div>
+        <div class="item">
+          <span class="name">DHR-E-2023</span>
+          <span class="meta">레거시 · 4 자재 · 10.0kg</span>
+        </div>
+      </div>
+    </aside>
+
+    <section class="right">
+      <div class="header">
+        <div>
+          <h2>DHR-A-2024 / 베이스 폴리머</h2>
+          <span class="sub">최근 수정 2026-04-12 · 김철수</span>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn secondary">복제</button>
+          <button class="btn secondary" style="color:var(--error);border-color:var(--error)">삭제</button>
+          <button class="btn primary">저장</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field"><span class="label">레시피명 <span class="star">*</span></span><input value="DHR-A-2024" /></div>
+        <div class="field"><span class="label">기본 배치 (g)</span><input class="amount" value="12,500.00" style="text-align:right" /></div>
+      </div>
+
+      <div class="totals">
+        <div class="t"><span class="l">자재 수</span><span class="v">4</span></div>
+        <div class="t"><span class="l">비율 합계</span><span class="v accent">100.00%</span></div>
+        <div class="t"><span class="l">이론 합계</span><span class="v">12,500.000 g</span></div>
+      </div>
+
+      <table class="dt" style="background:var(--surface-alt);border-radius:var(--radius-md);overflow:hidden">
+        <thead>
+          <tr>
+            <th style="width:40px"></th>
+            <th>품목코드</th>
+            <th>품목명</th>
+            <th class="num">비율(%)</th>
+            <th class="num">이론(g)</th>
+            <th style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="color:var(--text-secondary)">1</td><td>M-001</td><td>베이스 폴리머</td><td class="num">62.50</td><td class="num">7,812.500</td><td><span style="color:var(--text-secondary);cursor:pointer">⋯</span></td></tr>
+          <tr><td style="color:var(--text-secondary)">2</td><td>M-014</td><td>가소제 A</td><td class="num">22.30</td><td class="num">2,787.500</td><td><span style="color:var(--text-secondary);cursor:pointer">⋯</span></td></tr>
+          <tr><td style="color:var(--text-secondary)">3</td><td>M-027</td><td>안정제 BX</td><td class="num">12.20</td><td class="num">1,525.000</td><td><span style="color:var(--text-secondary);cursor:pointer">⋯</span></td></tr>
+          <tr><td style="color:var(--text-secondary)">4</td><td>M-099</td><td>안료 (옐로우)</td><td class="num">3.00</td><td class="num">375.000</td><td><span style="color:var(--text-secondary);cursor:pointer">⋯</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div>
+      <div class="l-title">SHELL</div>
+      FluentWindow · 1200×800 default · 220px sidebar · 36px titlebar · status bar 28px
+    </div>
+    <div>
+      <div class="l-title">SURFACES</div>
+      <code>--bg-window</code> gradient · <code>--surface-alt</code> cards · <code>--accent-highlight-bg</code> LOT cells
+    </div>
+    <div>
+      <div class="l-title">ICONS</div>
+      Lucide stroke=2 substitutes for FluentIcon — see README → Iconography
+    </div>
+    <div>
+      <div class="l-title">TYPE</div>
+      Inter Tight + Noto Sans KR substitute for Bahnschrift/Pretendard — see fonts/README.md
+    </div>
+  </div>
+
+</body>
+</html>

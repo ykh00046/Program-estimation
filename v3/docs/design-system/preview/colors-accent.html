@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Colors — Amber Accent</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 16px; background: var(--bg-window); }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 10px; }
+  .alphas { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .swatch { border-radius: var(--radius-md); padding: 12px; min-height: 72px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border-subtle); }
+  .name { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; color: var(--text-primary); text-transform: uppercase; opacity: 0.85; }
+  .hex  { font-family: 'Cascadia Mono', ui-monospace, monospace; font-size: 11px; color: var(--text-primary); }
+  .grad { background: var(--accent-gradient); }
+  .alpha-cell { background: var(--surface-alt); position: relative; overflow: hidden; }
+  .alpha-cell .fill { position: absolute; inset: 0; }
+</style></head>
+<body>
+  <div class="row">
+    <div class="swatch" style="background:#F2C066;color:#1A1206"><span class="name">grad-start</span><span class="hex">#F2C066</span></div>
+    <div class="swatch" style="background:#E3A12F;color:#1A1206"><span class="name">accent</span><span class="hex">#E3A12F</span></div>
+    <div class="swatch" style="background:#D9901E;color:#1A1206"><span class="name">grad-end</span><span class="hex">#D9901E</span></div>
+    <div class="swatch grad" style="color:#1A1206"><span class="name">gradient</span><span class="hex">90deg</span></div>
+    <div class="swatch" style="background:#FFD07A;color:#1A1206"><span class="name">hover-start</span><span class="hex">#FFD07A</span></div>
+  </div>
+  <div class="alphas">
+    <div class="swatch alpha-cell"><div class="fill" style="background:rgba(227,161,47,0.08)"></div><span class="name" style="position:relative">08</span><span class="hex" style="position:relative">.08</span></div>
+    <div class="swatch alpha-cell"><div class="fill" style="background:rgba(227,161,47,0.12)"></div><span class="name" style="position:relative">12</span><span class="hex" style="position:relative">.12</span></div>
+    <div class="swatch alpha-cell"><div class="fill" style="background:rgba(227,161,47,0.16)"></div><span class="name" style="position:relative">16</span><span class="hex" style="position:relative">.16</span></div>
+    <div class="swatch alpha-cell"><div class="fill" style="background:rgba(227,161,47,0.18)"></div><span class="name" style="position:relative">18</span><span class="hex" style="position:relative">.18</span></div>
+    <div class="swatch alpha-cell"><div class="fill" style="background:rgba(227,161,47,0.22)"></div><span class="name" style="position:relative">22</span><span class="hex" style="position:relative">.22</span></div>
+    <div class="swatch alpha-cell"><div class="fill" style="background:rgba(227,161,47,0.35)"></div><span class="name" style="position:relative">border</span><span class="hex" style="position:relative">.35</span></div>
+  </div>
+</body></html>

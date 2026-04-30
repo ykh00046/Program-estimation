@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Colors — Text</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg-window); display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; align-items: baseline; gap: 16px; }
+  .name { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text-secondary); text-transform: uppercase; min-width: 110px; }
+  .hex  { font-family: 'Cascadia Mono', ui-monospace, monospace; font-size: 12px; color: var(--text-secondary); min-width: 90px; }
+  .sample { font-size: 17px; font-weight: 600; }
+  .on-accent { background: var(--accent); padding: 2px 10px; border-radius: 4px; }
+</style></head>
+<body>
+  <div class="row"><span class="name">primary</span><span class="hex">#F5F7FA</span><span class="sample" style="color:#F5F7FA">자재 LOT 입력 — Aa</span></div>
+  <div class="row"><span class="name">secondary</span><span class="hex">#C2CAD8</span><span class="sample" style="color:#C2CAD8">레시피 선택 — Aa</span></div>
+  <div class="row"><span class="name">placeholder</span><span class="hex">#D5DBE6</span><span class="sample" style="color:#D5DBE6;opacity:.7">검색하세요…</span></div>
+  <div class="row"><span class="name">on-accent</span><span class="hex">#1A1206</span><span class="sample on-accent" style="color:#1A1206">배합 저장</span></div>
+</body></html>

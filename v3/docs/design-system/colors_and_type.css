@@ -1,0 +1,192 @@
+/* ==========================================================================
+   DHR 배합 프로그램 — Color & Type Tokens
+   Sourced from v3/ui/styles.py (UITheme) — kept token-for-token where possible.
+   ========================================================================== */
+
+/* Fonts: Inter Tight + Noto Sans KR loaded from Google Fonts CDN.
+   See fonts/README.md for the Bahnschrift/Pretendard substitution rationale. */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* ----- Surfaces (deep dark) ------------------------------------------- */
+  --bg-primary: #0C0F14;            /* base background, top-left of gradient */
+  --bg-gradient-end: #10151F;       /* bottom-right of gradient */
+  --surface-dark: #10141B;          /* card on background */
+  --surface-alt: #141A23;           /* card on card / inputs */
+  --surface-readonly: #1C222D;      /* readonly fields */
+
+  /* Window background (verbatim from styles.py main panel rule) */
+  --bg-window: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-gradient-end) 100%);
+
+  /* ----- Accent (named MINT_* in source, actually amber/gold) ----------- */
+  --accent: #E3A12F;                /* MINT_ACCENT — primary amber */
+  --accent-grad-start: #F2C066;     /* MINT_GRADIENT_START */
+  --accent-grad-end:   #D9901E;     /* MINT_GRADIENT_END */
+  --accent-hover-start:#FFD07A;     /* MINT_HOVER_START */
+  --accent-hover-end:  #E3A12F;     /* MINT_HOVER_END */
+
+  --accent-08: rgba(227, 161, 47, 0.08);
+  --accent-12: rgba(227, 161, 47, 0.12);
+  --accent-16: rgba(227, 161, 47, 0.16);
+  --accent-18: rgba(227, 161, 47, 0.18);
+  --accent-22: rgba(227, 161, 47, 0.22);
+  --accent-border: rgba(227, 161, 47, 0.35);
+  --accent-highlight-bg: #2A2212;   /* warm fill behind LOT cells */
+
+  --accent-gradient: linear-gradient(90deg, var(--accent-grad-start) 0%, var(--accent-grad-end) 100%);
+  --accent-gradient-hover: linear-gradient(90deg, var(--accent-hover-start) 0%, var(--accent-hover-end) 100%);
+
+  /* ----- Text ----------------------------------------------------------- */
+  --text-primary: #F5F7FA;
+  --text-secondary: #C2CAD8;
+  --text-on-accent: #1A1206;        /* dark warm-brown for use on amber */
+  --text-placeholder: #D5DBE6;
+
+  /* ----- Status --------------------------------------------------------- */
+  --success: #2ECC71;
+  --warning: #F5A623;
+  --error: #FF4D4F;
+  --error-bg: rgba(255, 77, 79, 0.20);
+  --error-bg-light: rgba(239, 68, 68, 0.10);
+  --error-bg-strong: rgba(239, 68, 68, 0.20);
+  --error-highlight-bg: #3A1C1C;
+
+  /* ----- Field / border tints ------------------------------------------- */
+  --field-bg: rgba(255, 255, 255, 0.08);
+  --field-bg-hover: rgba(255, 255, 255, 0.12);
+  --field-bg-pressed: rgba(255, 255, 255, 0.16);
+
+  --border-subtle-light: rgba(255, 255, 255, 0.04);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.18);
+
+  --scrollbar-handle: rgba(255, 255, 255, 0.15);
+
+  /* ----- Radii ---------------------------------------------------------- */
+  --radius-xs: 4px;   /* sidebar item */
+  --radius-sm: 6px;   /* small inputs */
+  --radius-md: 8px;   /* buttons, group boxes */
+  --radius-lg: 14px;  /* cards (CARD_BORDER_RADIUS) */
+  --radius-xl: 16px;  /* frameless modal */
+
+  /* ----- Spacing -------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 24px;
+  --space-10: 28px;
+  --space-11: 32px;
+  --row-height: 48px;          /* table row */
+  --button-height: 44px;       /* primary button minimum */
+
+  /* ----- Shadows -------------------------------------------------------- */
+  --shadow-amber-glow: 0 6px 28px rgba(227, 161, 47, 0.22);  /* MintInfoCard */
+  --shadow-card: none;          /* most cards have NO shadow */
+
+  /* ----- Type ----------------------------------------------------------- */
+  /* Bahnschrift is the source-of-truth font on Windows; substituted here
+     with InterTight (Latin) + NotoSansKR (Korean). Keep the original
+     Bahnschrift / Malgun Gothic / Segoe UI in the stack so a real Windows
+     install of the source app still resolves correctly. */
+  --font-sans: 'Inter Tight', 'Bahnschrift', 'Pretendard', 'Malgun Gothic',
+               'Noto Sans KR', 'Segoe UI', sans-serif;
+  --font-kr:   'Noto Sans KR', 'Pretendard', 'Malgun Gothic',
+               'Inter Tight', sans-serif;
+
+  /* type scale (px values lifted from styles.py inline rules) */
+  --fs-caption-tiny: 11px;   /* uppercase labels */
+  --fs-caption: 12px;        /* admin link */
+  --fs-secondary: 13px;      /* secondary buttons, captions on cards */
+  --fs-body: 14px;           /* default for QLabel / inputs */
+  --fs-amount: 17px;         /* 13pt batch-amount entry */
+  --fs-h3: 18px;
+  --fs-h2: 24px;             /* recipe management title */
+  --fs-h1: 30px;             /* "Welcome Back!" */
+  --fs-kpi: 32px;            /* InfoCard value */
+
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+
+  --tracking-tight: -0.5px;  /* h1 only */
+  --tracking-normal: 0;
+  --tracking-label: 0.3px;   /* uppercase form labels */
+  --tracking-kpi: 0.5px;     /* KPI title */
+  --tracking-caption: 0.6px; /* InfoCard title */
+}
+
+/* --------------------------------------------------------------------------
+   Semantic element styles — apply directly to bare HTML
+   -------------------------------------------------------------------------- */
+
+html, body {
+  background: var(--bg-window);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, .h1 {
+  font-size: var(--fs-h1);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  margin: 0;
+}
+h2, .h2 {
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+h3, .h3 {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+p { color: var(--text-secondary); font-size: var(--fs-body); margin: 0; }
+
+code, kbd, pre, .mono {
+  font-family: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+  font-size: var(--fs-secondary);
+}
+
+.label-uppercase {
+  text-transform: uppercase;
+  font-size: var(--fs-caption-tiny);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-secondary);
+}
+
+.caption {
+  font-size: var(--fs-secondary);
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+}
+
+.kpi-value {
+  font-size: var(--fs-kpi);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+}
+.kpi-value.accent { color: var(--accent); }
+.kpi-title {
+  font-size: var(--fs-caption-tiny);
+  letter-spacing: var(--tracking-caption);
+  color: var(--text-secondary);
+  text-transform: none;
+  font-weight: var(--fw-medium);
+}

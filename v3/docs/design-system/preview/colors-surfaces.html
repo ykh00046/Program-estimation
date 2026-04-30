@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Colors — Surfaces</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 16px; background: var(--bg-window); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .swatch { border-radius: var(--radius-md); padding: 14px 12px; min-height: 88px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border-subtle); }
+  .name { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text-secondary); text-transform: uppercase; }
+  .hex  { font-family: 'Cascadia Mono', ui-monospace, monospace; font-size: 12px; color: var(--text-primary); }
+</style></head>
+<body>
+  <div class="grid">
+    <div class="swatch" style="background:#0C0F14"><span class="name">bg-primary</span><span class="hex">#0C0F14</span></div>
+    <div class="swatch" style="background:#10151F"><span class="name">bg-grad-end</span><span class="hex">#10151F</span></div>
+    <div class="swatch" style="background:#10141B"><span class="name">surface-dark</span><span class="hex">#10141B</span></div>
+    <div class="swatch" style="background:#141A23"><span class="name">surface-alt</span><span class="hex">#141A23</span></div>
+    <div class="swatch" style="background:#1C222D"><span class="name">readonly</span><span class="hex">#1C222D</span></div>
+  </div>
+</body></html>

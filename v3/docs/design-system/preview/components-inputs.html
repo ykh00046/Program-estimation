@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Components — Inputs</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg-window); display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .label { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text-secondary); text-transform: uppercase; }
+  .star { color: #E3A12F; }
+  input, select { font-family: inherit; font-size: 14px; padding: 10px 14px; border-radius: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #F5F7FA; outline: none; }
+  input:focus { border-color: #E3A12F; background: rgba(227,161,47,0.08); }
+  input::placeholder { color: #D5DBE6; opacity: 0.5; }
+  .focused { border-color: #E3A12F !important; background: rgba(227,161,47,0.08) !important; }
+  .error-input { border-color: #FF4D4F !important; background: rgba(255,77,79,0.20) !important; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+</style></head>
+<body>
+  <div class="row">
+    <div class="field"><span class="label">Recipe name <span class="star">*</span></span><input value="DHR-A-2024" /></div>
+    <div class="field"><span class="label">Default (focused)</span><input class="focused" value="12,500.00" /></div>
+  </div>
+  <div class="row">
+    <div class="field"><span class="label">Placeholder</span><input placeholder="검색하세요…" /></div>
+    <div class="field"><span class="label">Error state</span><input class="error-input" value="" /></div>
+  </div>
+</body></html>

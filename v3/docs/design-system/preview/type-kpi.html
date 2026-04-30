@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Type — KPI</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 18px; background: var(--bg-window); display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { background: var(--surface-alt); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 18px 20px 14px; height: 110px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; }
+  .card.glow { box-shadow: var(--shadow-amber-glow); }
+  .title { font-size: 11px; letter-spacing: 0.6px; color: var(--text-secondary); font-weight: 500; }
+  .val { font-size: 32px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+  .val.accent { color: var(--accent); }
+  .bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-top: auto; }
+  .bar > div { height: 100%; width: 70%; background: var(--accent); }
+</style></head>
+<body>
+  <div class="card">
+    <div class="title">오늘 배합 건수</div>
+    <div class="val">14</div>
+    <div style="font-size:12px;color:#C2CAD8">InfoCard — neutral KPI</div>
+  </div>
+  <div class="card glow">
+    <div class="title">진행률</div>
+    <div class="val accent">78%</div>
+    <div class="bar"><div></div></div>
+  </div>
+</body></html>
