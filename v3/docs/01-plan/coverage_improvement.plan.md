@@ -1,5 +1,9 @@
 # Test Coverage Improvement Plan
 
+> **Status**: ✅ Completed (2026-05-19 확인)  
+> 계획된 `tests/run_tests.py`, `tests/unit/`, `tests/integration/` 구조가 모두 구축되었고
+> 65개 테스트가 통과한다. 본 문서는 참조용으로 보존한다.
+
 ## Goal
 
 Increase test coverage from ~40% to 60% by implementing structured Unit and Integration tests.

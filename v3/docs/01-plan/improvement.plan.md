@@ -4,7 +4,27 @@
 >
 > **Author**: AI Assistant  
 > **Created**: 2026-01-31  
-> **Status**: Draft
+> **Last Updated**: 2026-05-19  
+> **Status**: 🔄 In Progress (8/10 완료)
+
+---
+
+## 진행 현황 (2026-05-19 갱신)
+
+| # | 항목 | 상태 | 비고 |
+| --- | --- | --- | --- |
+| 1 | 단일 인스턴스 실행 | ✅ 완료 | `main.py:77` mutex |
+| 2 | .venv 정리 | 🔄 진행 중 | `integration.plan.md`에서 추적 |
+| 3 | requirements.txt 버전 고정 | ✅ 완료 | gspread/google 핀 고정 |
+| 4 | MainWindow 리팩토링 | ✅ 완료 | PDCA #7 (699→295 LOC) |
+| 5 | UX 개선 (창 최상위/입력 UX) | ✅ 완료 | `main_window.py:61`, `recipe_panel.py` |
+| 6 | PyInstaller 설정 보강 | ✅ 완료 | `build.py:37` hidden imports |
+| 7 | 테스트 커버리지 향상 | ✅ 완료 | `run_tests.py` + 65 테스트 통과 |
+| 8 | 레거시 파일 정리 | ✅ 완료 | `data_manager_utf8.py` 제거됨 |
+| 9 | 함수 길이 리팩토링 | ⏳ 미착수 | `database.save_mixing_record` 등 |
+| 10 | 중복 코드 제거 (DRY) | ⏳ 미착수 | 범위 재정의 필요 |
+
+> 미완료 항목(#2, #9, #10)은 향후 PDCA 사이클에서 다룬다. 아래 본문은 작성 당시(2026-01-31) 원문이다.
 
 ---
 
