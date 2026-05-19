@@ -189,7 +189,7 @@ class ExcelExporter:
                 try:
                     os.remove(f)
                     logger.debug(f"임시 파일 삭제: {f}")
-                except Exception as e:
+                except OSError as e:
                     logger.warning(f"임시 파일 삭제 실패: {f}, 오류: {e}")
 
     def _fill_excel_data(self, ws, data, include_work_time=True):

@@ -43,7 +43,7 @@ def _resolve_user_data_dir():
         try:
             os.makedirs(path, exist_ok=True)
             return path
-        except Exception as e:
+        except OSError as e:
             _logger.warning(f"데이터 디렉토리 생성 실패 ({path}): {e}")
             continue
     return BASE_PATH

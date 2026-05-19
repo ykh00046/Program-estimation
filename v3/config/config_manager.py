@@ -44,7 +44,7 @@ class Config:
                     self._data = json.load(f)
             else:
                 self._data = {}
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as e:
             _logger.warning(f"설정 파일 로드 실패 (기본값 사용): {e}")
             self._data = {}
 
@@ -73,7 +73,7 @@ class Config:
     def tolerance(self) -> float:
         try:
             return float(self.get("mixing.tolerance", 0.05))
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             _logger.warning(f"tolerance 변환 실패: {e}")
             return 0.05
 
@@ -207,7 +207,7 @@ class Config:
         try:
             salt = base64.b64decode(salt_b64.encode("utf-8"))
             expected = base64.b64decode(hash_b64.encode("utf-8"))
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             _logger.warning(f"비밀번호 검증 디코딩 실패: {e}")
             return False
         dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 200000)
@@ -220,7 +220,7 @@ class Config:
             with open(self._config_path, "w", encoding="utf-8") as f:
                 json.dump(self._data, f, indent=2, ensure_ascii=False)
             return True
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             _logger.error(f"설정 파일 저장 실패 ({self._config_path}): {e}")
             return False
 

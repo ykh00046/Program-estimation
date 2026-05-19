@@ -251,7 +251,7 @@ class DataManager:
         if success and os.path.exists(signed_image_path):
             try:
                 os.remove(signed_image_path)
-            except Exception:
+            except OSError:
                 pass
 
         return pdf_file
@@ -277,7 +277,7 @@ class DataManager:
                     final_pdf_dir = os.path.join(base_dir, '실적서', 'pdf')
                     os.makedirs(final_pdf_dir, exist_ok=True)
                     shutil.move(pdf_file, os.path.join(final_pdf_dir, os.path.basename(pdf_file)))
-                except Exception as move_err:
+                except OSError as move_err:
                     logger.warning(f"PDF 위치 정규화 실패: {move_err}")
         except Exception as e:
             logger.error(f"실적서 생성 중 오류 발생: {e}", exc_info=True)

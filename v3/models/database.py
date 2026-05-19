@@ -46,7 +46,7 @@ class DatabaseManager:
                 os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
                 shutil.copy2(LEGACY_DB_PATH, self.db_path)
                 logger.info(f"레거시 DB를 신규 경로로 복사했습니다: {self.db_path}")
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"레거시 DB 복사 실패({LEGACY_DB_PATH} -> {self.db_path}): {e}")
     
     @contextmanager

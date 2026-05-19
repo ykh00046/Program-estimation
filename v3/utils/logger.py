@@ -39,7 +39,7 @@ class Logger:
         try:
             os.makedirs(LOG_FOLDER, exist_ok=True)
             self._add_file_handlers(LOG_FOLDER, formatter)
-        except Exception as e:
+        except OSError as e:
             self._logger.warning(f"File logging disabled: {e}")
 
     def _add_file_handlers(self, log_dir: str, formatter: logging.Formatter) -> None:
@@ -54,7 +54,7 @@ class Logger:
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(formatter)
             self._logger.addHandler(file_handler)
-        except Exception as e:
+        except OSError as e:
             self._logger.warning(f"Main log file handler disabled: {e}")
 
         try:
@@ -65,7 +65,7 @@ class Logger:
             error_handler.setLevel(logging.ERROR)
             error_handler.setFormatter(formatter)
             self._logger.addHandler(error_handler)
-        except Exception as e:
+        except OSError as e:
             self._logger.warning(f"Error log file handler disabled: {e}")
 
     def debug(self, message: Any, **kwargs) -> None:
