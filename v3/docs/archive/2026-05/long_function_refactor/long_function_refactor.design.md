@@ -1,7 +1,7 @@
 # 긴 함수 리팩토링 설계서 (PDCA #13)
 
 > **Feature**: long_function_refactor
-> **Plan**: [../01-plan/features/long_function_refactor.plan.md](../../01-plan/features/long_function_refactor.plan.md)
+> **Plan**: [long_function_refactor.plan.md](./long_function_refactor.plan.md)
 > **Author**: AI Assistant
 > **Created**: 2026-05-19
 > **Status**: 🔄 Design

@@ -10,12 +10,6 @@
 | [coverage_improvement.plan.md](./coverage_improvement.plan.md) | ✅ Completed | 테스트 커버리지 향상 계획 (run_tests.py + 65 테스트) | 2026-05-19 |
 | [integration.plan.md](./integration.plan.md) | 🔄 In Progress | v3 ↔ .venv 통합 계획 | 2026-01-31 |
 
-### 진행 중 기능 계획 (features/)
-
-| 문서명 | 상태 | PDCA |
-| --- | --- | --- |
-| [features/long_function_refactor.plan.md](./features/long_function_refactor.plan.md) | 🔄 In Progress | #13 |
-
 ## Status Legend
 
 - ✅ Completed: 완료됨

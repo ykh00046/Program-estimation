@@ -1,7 +1,7 @@
 # 긴 함수 리팩토링 Gap 분석 (PDCA #13)
 
 > **Feature**: long_function_refactor
-> **Design**: [../../02-design/features/long_function_refactor.design.md](../../02-design/features/long_function_refactor.design.md)
+> **Design**: [long_function_refactor.design.md](./long_function_refactor.design.md)
 > **Author**: AI Assistant
 > **Created**: 2026-05-19
 > **PDCA Cycle**: #13

@@ -20,6 +20,7 @@
 | [mixing_improvements.*](./2026-04/mixing_improvements/) | 01~02/features/ | 2026-04-14 | 작업시간/LOT/리셋/검증 개선 (사후 report) |
 | [orphan_docs/](./2026-04/orphan_docs/) | 01~02/ | 2026-04-14 | 이미 구현 완료된 사후 기록 (ui_theme, ux_improvements) |
 | [cycles/](./cycles/) | 04-report/features/ | 2026-04-14 | 사이클 번호 기반 표준 외 보고서 모음 |
+| [long_function_refactor.*](./2026-05/long_function_refactor/) | 01~04/features/ | 2026-05-19 | PDCA #13 완료 (_init_ui 5종 빌더 분해, Match 98%) |
 
 ## Note
 
