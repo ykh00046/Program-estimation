@@ -1,6 +1,6 @@
 """
 DHR 레시피 관리 인터페이스 (사이드바 메뉴용)
-기존 DhrRecipeManagerDialog를 메인 윈도우 패널로 전환
+레시피 CRUD — 목록 / 기본 정보 / 자재 편집
 """
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
