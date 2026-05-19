@@ -44,44 +44,51 @@ class BulkCreationInterface(QScrollArea):
         self.content_widget = QWidget()
         self.content_widget.setObjectName("DHRContent")
         self.setWidget(self.content_widget)
-        
+
         root = QVBoxLayout(self.content_widget)
         root.setContentsMargins(24, 20, 24, 40)
         root.setSpacing(20)
 
-        # Title
         title_label = QLabel("일괄 생성")
         title_label.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {UITheme.TEXT_PRIMARY};")
         root.addWidget(title_label)
 
-        # 상단: 공통 정보 (작업자, 옵션)
+        root.addWidget(self._build_common_info_group())
+        root.addWidget(self._build_bulk_data_group())
+        root.addWidget(self._build_material_group())
+        root.addWidget(self._build_settings_tabs())
+        root.addLayout(self._build_action_bar())
+
+    def _build_common_info_group(self) -> CardWidget:
+        """공통 정보 카드 (제품명 + 시간 옵션)."""
         info_group = CardWidget()
         info_layout = QVBoxLayout(info_group)
         info_layout.setContentsMargins(16, 12, 16, 12)
-        
+
         common_layout = QHBoxLayout()
         common_layout.addWidget(QLabel("제품명:"))
         self.product_name_edit = LineEdit()
         self.product_name_edit.setPlaceholderText("일괄 생성할 제품명")
         common_layout.addWidget(self.product_name_edit)
-        
+
         common_layout.addWidget(QLabel("시간 설정:"))
         self.chk_include_time = CheckBox("엑셀에 시간 표시")
         self.chk_include_time.setChecked(True)
         common_layout.addWidget(self.chk_include_time)
-        
-        info_layout.addLayout(common_layout)
-        root.addWidget(info_group)
 
-        # 중단: 생성 데이터 (날짜/수량)
+        info_layout.addLayout(common_layout)
+        return info_group
+
+    def _build_bulk_data_group(self) -> CardWidget:
+        """생성 데이터 입력 카드 (날짜/배합량 테이블 + 행 버튼)."""
         bulk_group = CardWidget()
         bulk_layout = QVBoxLayout(bulk_group)
         bulk_layout.setContentsMargins(16, 12, 16, 12)
-        
+
         bulk_label = QLabel("1. 생성할 데이터 입력 (날짜 / 배합량)")
         bulk_label.setStyleSheet(f"color: {UITheme.TEXT_PRIMARY}; font-weight: bold;")
         bulk_layout.addWidget(bulk_label)
-        
+
         guide_label = QLabel("입력 형식: 작업일자(YYYY-MM-DD) / 배합량(g) - 엑셀에서 복사하여 붙여넣기(Ctrl+V) 가능")
         guide_label.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY}; font-size: 12px;")
         bulk_layout.addWidget(guide_label)
@@ -95,7 +102,7 @@ class BulkCreationInterface(QScrollArea):
         self.bulk_table.setAlternatingRowColors(True)
         self.bulk_table.verticalHeader().setVisible(False)
         bulk_layout.addWidget(self.bulk_table)
-        
+
         bulk_btn_box = QHBoxLayout()
         add_btn = StyledButton("행 추가")
         add_btn.clicked.connect(self._add_bulk_row)
@@ -105,18 +112,18 @@ class BulkCreationInterface(QScrollArea):
         bulk_btn_box.addWidget(remove_btn)
         bulk_btn_box.addStretch()
         bulk_layout.addLayout(bulk_btn_box)
-        
-        root.addWidget(bulk_group)
+        return bulk_group
 
-        # 하단: 자재 정보 (공통 적용)
+    def _build_material_group(self) -> CardWidget:
+        """자재 정보 카드 (공통 적용 테이블 + 행/레시피 버튼)."""
         mat_group = CardWidget()
         mat_layout = QVBoxLayout(mat_group)
         mat_layout.setContentsMargins(16, 12, 16, 12)
-        
+
         mat_label = QLabel("2. 자재 정보 (모든 건에 공통 적용)")
         mat_label.setStyleSheet(f"color: {UITheme.TEXT_PRIMARY}; font-weight: bold;")
         mat_layout.addWidget(mat_label)
-        
+
         self.mat_table = PasteableTableWidget()
         self.mat_table.setColumnCount(3)
         self.mat_table.setHorizontalHeaderLabels(["품목코드", "품목명", "배합비율(%)"])
@@ -125,9 +132,9 @@ class BulkCreationInterface(QScrollArea):
         self.mat_table.setAlternatingRowColors(True)
         self.mat_table.verticalHeader().setVisible(False)
         self.mat_table.setRowCount(3)
-        self._add_mat_row(0) # Init rows
+        self._add_mat_row(0)
         mat_layout.addWidget(self.mat_table)
-        
+
         mat_btn_box = QHBoxLayout()
         mat_add_btn = StyledButton("행 추가")
         mat_add_btn.clicked.connect(self._add_mat_row)
@@ -136,37 +143,36 @@ class BulkCreationInterface(QScrollArea):
         mat_remove_btn.clicked.connect(self._remove_mat_row)
         mat_btn_box.addWidget(mat_remove_btn)
         mat_btn_box.addStretch()
-        
-        # 레시피 불러오기 버튼 (자재 채우기용)
+
         load_recipe_btn = StyledButton("레시피 불러오기", "primary")
         load_recipe_btn.clicked.connect(self._open_recipe_loader)
         mat_btn_box.addWidget(load_recipe_btn)
-        
-        mat_layout.addLayout(mat_btn_box)
-        root.addWidget(mat_group)
 
-        # PDF/서명 설정 (탭)
+        mat_layout.addLayout(mat_btn_box)
+        return mat_group
+
+    def _build_settings_tabs(self) -> QTabWidget:
+        """PDF 스캔 효과 + 서명 옵션 설정 탭."""
         tabs = QTabWidget()
         settings_tab = QWidget()
         settings_layout = QHBoxLayout(settings_tab)
-        
+
         self.scan_effects_panel = ScanEffectsPanel()
         settings_layout.addWidget(create_group_box("PDF 스캔 효과", self.scan_effects_panel))
-        
+
         self.signature_panel = SignaturePanel()
         settings_layout.addWidget(create_group_box("서명 옵션", self.signature_panel))
-        
+
         settings_layout.addStretch()
         tabs.addTab(settings_tab, "PDF/서명 설정")
-        root.addWidget(tabs)
+        return tabs
 
-        # 실행 버튼
+    def _build_action_bar(self) -> QHBoxLayout:
+        """하단 기록 조회 / 일괄 생성 버튼."""
         action_layout = QHBoxLayout()
-
         record_view_btn = StyledButton("기록 조회", "secondary")
         record_view_btn.clicked.connect(self._open_record_view)
         action_layout.addWidget(record_view_btn)
-
         action_layout.addStretch()
 
         generate_btn = StyledButton("일괄 생성 및 출력", "success")
@@ -174,9 +180,8 @@ class BulkCreationInterface(QScrollArea):
         generate_btn.setMinimumHeight(45)
         generate_btn.setMinimumWidth(200)
         generate_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
-
         action_layout.addWidget(generate_btn)
-        root.addLayout(action_layout)
+        return action_layout
 
     def _add_bulk_row(self):
         row = self.bulk_table.rowCount()

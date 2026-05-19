@@ -75,52 +75,57 @@ class SignatureSettingsPanel(QWidget):
 
     def _init_ui(self):
         main_layout = QHBoxLayout(self)
-        
-        # 스플리터로 좌우 패널 구분
         splitter = QSplitter(Qt.Horizontal)
-        
-        # 좌측: 설정 컨트롤 패널
+
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        
-        # 1. 서명 위치 설정 (Position) - 컴팩트하게 수정
+        left_layout.addWidget(self._build_position_group())
+        left_layout.addWidget(self._build_quality_group())
+        left_layout.addWidget(self._build_test_group())
+        splitter.addWidget(left_panel)
+
+        splitter.addWidget(self._build_preview_panel())
+        splitter.setSizes([400, 600])
+        main_layout.addWidget(splitter)
+
+    def _build_position_group(self) -> QGroupBox:
+        """서명 위치 설정 그룹 (charge/review/approve X·Y)."""
         pos_group = QGroupBox("서명 위치 설정 (좌표: X, Y)")
-        pos_layout = QHBoxLayout()  # 가로 배치로 변경
-        
+        pos_layout = QHBoxLayout()
+
         self.pos_controls = {}
         for key in ['charge', 'review', 'approve']:
             v_box = QVBoxLayout()
             v_box.addWidget(QLabel(key.upper()))
-            
+
             h_box = QHBoxLayout()
             x_spin = QSpinBox()
             x_spin.setRange(0, 1000)
             x_spin.setToolTip(f"{key} X 좌표")
-            
+
             y_spin = QSpinBox()
             y_spin.setRange(0, 1000)
             y_spin.setToolTip(f"{key} Y 좌표")
-            
+
             h_box.addWidget(x_spin)
             h_box.addWidget(y_spin)
             v_box.addLayout(h_box)
-            
+
             pos_layout.addLayout(v_box)
             self.pos_controls[key] = (x_spin, y_spin)
-            
+
         pos_group.setLayout(pos_layout)
-        left_layout.addWidget(pos_group)
-        
-        # 2. 품질 파라미터 설정 (QA Tool 이식)
+        return pos_group
+
+    def _build_quality_group(self) -> QGroupBox:
+        """서명 품질 파라미터 그룹 (QA Tool 이식 + Randomization)."""
         qa_group = QGroupBox("서명 품질 파라미터")
         qa_scroll = QScrollArea()
         qa_scroll.setWidgetResizable(True)
         qa_widget = QWidget()
         qa_layout = QVBoxLayout(qa_widget)
-        
+
         self.param_controls = {}
-        
-        # 파라미터 컨트롤 생성 (설명 추가)
         self.param_controls['gaussian_blur_sigma'] = self._add_double_param(
             qa_layout, "Gaussian Blur:", 0.0, 5.0, 0.1, "흐림 정도 (부드럽게)")
         self.param_controls['pressure_noise_strength'] = self._add_double_param(
@@ -131,8 +136,7 @@ class SignatureSettingsPanel(QWidget):
             qa_layout, "Brightness:", 0.5, 2.0, 0.05, "밝기 조절")
         self.param_controls['final_contrast_factor'] = self._add_double_param(
             qa_layout, "Contrast:", 0.5, 2.0, 0.1, "대비 조절 (선명하게)")
-        
-        # Randomization
+
         rand_group = QGroupBox("Randomization (무작위 변형)")
         rand_layout = QVBoxLayout()
         self.param_controls['rotation_angle'] = self._add_int_param(
@@ -143,59 +147,52 @@ class SignatureSettingsPanel(QWidget):
             rand_layout, "Scale Max:", 0.5, 1.0, 0.01, "최대 크기 비율")
         rand_group.setLayout(rand_layout)
         qa_layout.addWidget(rand_group)
-        
+
         qa_scroll.setWidget(qa_widget)
         qa_group.setLayout(QVBoxLayout())
         qa_group.layout().addWidget(qa_scroll)
-        left_layout.addWidget(qa_group)
+        return qa_group
 
-        # 3. 테스트 실행 버튼
+    def _build_test_group(self) -> QGroupBox:
+        """테스트 실행 그룹 (작업자 선택 + 생성/저장 버튼)."""
         test_group = QGroupBox("테스트 실행")
         test_layout = QVBoxLayout()
-        
+
         worker_layout = QHBoxLayout()
         worker_layout.addWidget(QLabel("작업자:"))
         self.worker_combo = QComboBox()
         self.worker_combo.addItems(config.workers)
         worker_layout.addWidget(self.worker_combo)
         test_layout.addLayout(worker_layout)
-        
+
         self.generate_btn = QPushButton("설정값으로 테스트 생성")
         self.generate_btn.clicked.connect(self._generate_test)
         test_layout.addWidget(self.generate_btn)
-        
+
         self.save_config_btn = QPushButton("현재 설정을 저장")
         self.save_config_btn.clicked.connect(self._save_to_config)
         test_layout.addWidget(self.save_config_btn)
-        
+
         test_group.setLayout(test_layout)
-        left_layout.addWidget(test_group)
-        
-        splitter.addWidget(left_panel)
-        
-        # 우측: 미리보기 패널
+        return test_group
+
+    def _build_preview_panel(self) -> QWidget:
+        """우측 미리보기 패널 (이미지 그리드 + 진행바)."""
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        
         right_layout.addWidget(QLabel("<b>미리보기 결과</b>"))
-        
+
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.image_container = QWidget()
         self.image_grid = QGridLayout(self.image_container)
         self.scroll_area.setWidget(self.image_container)
         right_layout.addWidget(self.scroll_area)
-        
+
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         right_layout.addWidget(self.progress_bar)
-        
-        splitter.addWidget(right_panel)
-        
-        # 스플리터 비율 설정
-        splitter.setSizes([400, 600])
-        
-        main_layout.addWidget(splitter)
+        return right_panel
 
     def _add_double_param(self, layout, label, min_val, max_val, step, tooltip=""):
         lbl = QLabel(label)

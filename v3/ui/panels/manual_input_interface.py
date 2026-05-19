@@ -46,169 +46,159 @@ class ManualInputInterface(QScrollArea):
         return config.last_worker or "Unknown"
 
     def _init_ui(self):
-        # 스크롤 가능한 컨텐츠 위젯
         self.content_widget = QWidget()
         self.content_widget.setObjectName("DHRContent")
         self.setWidget(self.content_widget)
-        
+
         root = QVBoxLayout(self.content_widget)
         root.setContentsMargins(24, 20, 24, 40)
         root.setSpacing(20)
 
-        # 상단 타이틀 및 툴바
+        root.addLayout(self._build_toolbar())
+
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(20)
+        top_layout.addWidget(self._build_work_group())
+        top_layout.addWidget(self._build_product_group())
+        root.addLayout(top_layout)
+
+        root.addWidget(self._build_settings_tabs())
+        root.addWidget(self._build_table_group())
+        root.addLayout(self._build_bottom_bar())
+
+    def _build_toolbar(self) -> QHBoxLayout:
+        """상단 타이틀 + 레시피 불러오기 버튼."""
         toolbar_layout = QHBoxLayout()
         title_label = QLabel("수기 입력")
         title_label.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {UITheme.TEXT_PRIMARY};")
         toolbar_layout.addWidget(title_label)
-        
         toolbar_layout.addStretch()
-        
+
         load_recipe_btn = StyledButton("레시피 불러오기", "primary")
         load_recipe_btn.clicked.connect(self._open_recipe_loader)
         toolbar_layout.addWidget(load_recipe_btn)
-        
-        root.addLayout(toolbar_layout)
+        return toolbar_layout
 
-        # 상단: 작업 정보 (왼쪽) + 제품 정보 (오른쪽)
-        top_layout = QHBoxLayout()
-        top_layout.setSpacing(20)
-        
-        # 작업 정보 (왼쪽)
+    def _build_work_group(self) -> CardWidget:
+        """작업 정보 카드 (작업일자/시간/시간표시)."""
         work_group = CardWidget()
         work_container = QVBoxLayout(work_group)
         work_container.setContentsMargins(16, 12, 16, 12)
         work_container.setSpacing(8)
-        work_title = QLabel("작업 정보")
-        work_container.addWidget(work_title)
+        work_container.addWidget(QLabel("작업 정보"))
 
         work_layout = QHBoxLayout()
-        
         work_layout.addWidget(QLabel("작업일자:"))
         self.date_edit = DateEdit()
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDate(QDate.currentDate())
         work_layout.addWidget(self.date_edit)
-        
+
         work_layout.addWidget(QLabel("작업시간:"))
         self.time_edit = TimeEdit()
         self.time_edit.setTime(QTime.currentTime())
         work_layout.addWidget(self.time_edit)
-        
+
         self.chk_include_time = CheckBox("엑셀에 시간 표시")
         self.chk_include_time.setToolTip("일괄 생성 시 09시+랜덤 분부터 시작, 동일 날짜는 20~40분 가산")
         self.chk_include_time.setChecked(True)
         work_layout.addWidget(self.chk_include_time)
-        
+
         work_container.addLayout(work_layout)
-        top_layout.addWidget(work_group)
-        
-        # 제품 정보 (오른쪽)
+        return work_group
+
+    def _build_product_group(self) -> CardWidget:
+        """제품 정보 카드 (제품명/LOT/배합량)."""
         product_group = CardWidget()
         product_container = QVBoxLayout(product_group)
         product_container.setContentsMargins(16, 12, 16, 12)
         product_container.setSpacing(8)
-        product_title = QLabel("제품 정보")
-        product_container.addWidget(product_title)
-        
+        product_container.addWidget(QLabel("제품 정보"))
+
         product_layout = QHBoxLayout()
-        
         product_layout.addWidget(QLabel("제품명:"))
         self.product_name_edit = LineEdit()
         self.product_name_edit.setPlaceholderText("제품명을 입력하세요")
         product_layout.addWidget(self.product_name_edit)
-        
+
         product_layout.addWidget(QLabel("제품LOT:"))
         self.product_lot_edit = LineEdit()
         self.product_lot_edit.setReadOnly(True)
         product_layout.addWidget(self.product_lot_edit)
-        
+
         product_layout.addWidget(QLabel("배합량(g):"))
         self.amount_spin = DoubleSpinBox()
         self.amount_spin.setRange(0, 9999999)
         self.amount_spin.setDecimals(2)
         self.amount_spin.setValue(0)
         product_layout.addWidget(self.amount_spin)
-        
-        product_container.addLayout(product_layout)
-        top_layout.addWidget(product_group)
-        
-        root.addLayout(top_layout)
 
-        # 중앙: 탭 위젯 (설정)
+        product_container.addLayout(product_layout)
+        return product_group
+
+    def _build_settings_tabs(self) -> QTabWidget:
+        """PDF 스캔 효과 + 서명 옵션 설정 탭."""
         tabs = QTabWidget()
-        
-        # PDF/서명 설정 탭
         settings_tab = QWidget()
         settings_layout = QHBoxLayout()
-        
+
         self.scan_effects_panel = ScanEffectsPanel()
         settings_layout.addWidget(create_group_box("PDF 스캔 효과", self.scan_effects_panel))
-        
+
         self.signature_panel = SignaturePanel()
         settings_layout.addWidget(create_group_box("서명 옵션", self.signature_panel))
-        
+
         settings_layout.addStretch()
         settings_tab.setLayout(settings_layout)
         tabs.addTab(settings_tab, "PDF/서명 설정")
-        
-        root.addWidget(tabs)
+        return tabs
 
-        # 자재 테이블 (붙여넣기 지원)
+    def _build_table_group(self) -> CardWidget:
+        """자재 입력 테이블 카드 (붙여넣기 지원 + 행 버튼)."""
         table_group = CardWidget()
         table_container = QVBoxLayout(table_group)
         table_container.setContentsMargins(16, 12, 16, 12)
         table_layout = QVBoxLayout()
-        
+
         self.table = PasteableTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels([
             "품목코드", "품목명", "배합비율(%)", "이론계량(g)", "실제배합(g)", "자재LOT"
         ])
-        
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(1, QHeaderView.Stretch)
         self.table.setStyleSheet(UIStyles.get_table_style())
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
-        
-        # 기본 행 추가
+
         self._add_row()
-        
         table_layout.addWidget(self.table)
-        
-        # 테이블 버튼
+
         table_btn_layout = QHBoxLayout()
-        
         add_row_btn = StyledButton("행 추가")
         add_row_btn.clicked.connect(self._add_row)
         table_btn_layout.addWidget(add_row_btn)
-        
         remove_row_btn = StyledButton("행 삭제")
         remove_row_btn.clicked.connect(self._remove_row)
         table_btn_layout.addWidget(remove_row_btn)
-        
         table_btn_layout.addStretch()
         table_layout.addLayout(table_btn_layout)
-        
-        table_container.addLayout(table_layout)
-        root.addWidget(table_group)
 
-        # 하단 버튼
+        table_container.addLayout(table_layout)
+        return table_group
+
+    def _build_bottom_bar(self) -> QHBoxLayout:
+        """하단 기록 조회 / 저장 및 출력 버튼."""
         bottom = QHBoxLayout()
-        
         record_view_btn = StyledButton("기록 조회", "secondary")
         record_view_btn.clicked.connect(self._open_record_view)
         bottom.addWidget(record_view_btn)
-        
         bottom.addStretch()
-        
+
         self.save_btn = StyledButton("저장 및 출력", "success")
         self.save_btn.clicked.connect(self._save_and_export)
         bottom.addWidget(self.save_btn)
-        
-        # 닫기 버튼은 제거 (사이드바 인터페이스이므로)
-        
-        root.addLayout(bottom)
+        return bottom
 
     def _open_recipe_loader(self):
         """레시피 불러오기 다이얼로그"""

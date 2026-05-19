@@ -31,195 +31,22 @@ class DhrRecipeManagerDialog(QDialog):
         self._load_recipes()
     
     def _init_ui(self):
-        # 다이얼로그 스타일 적용
         self.setStyleSheet(UIStyles.get_dialog_style())
-        
+
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
-        
-        # 내부 컨텐츠 레이아웃
+
         content_layout = QHBoxLayout()
         content_layout.setContentsMargins(10, 10, 10, 10)
-        
         splitter = QSplitter(Qt.Horizontal)
-        
-        # -----------------------------
-        # 왼쪽 패널: 레시피 목록
-        # -----------------------------
-        left_widget = QWidget()
-        left_layout = QVBoxLayout()
-        left_layout.setContentsMargins(0, 0, 5, 0)
-        
-        title_lbl = QLabel("레시피 목록")
-        title_lbl.setStyleSheet(f"color: {UITheme.TEXT_PRIMARY}; font-weight: bold; font-size: 14px;")
-        left_layout.addWidget(title_lbl)
-        
-        self.recipe_table = QTableWidget()
-        self.recipe_table.setColumnCount(6)
-        self.recipe_table.setHorizontalHeaderLabels(["ID", "레시피명", "거래처", "제품종류", "약품", "착용기간"])
-        self.recipe_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.recipe_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.recipe_table.clicked.connect(self._on_recipe_selected)
-        self.recipe_table.setColumnHidden(0, True)
-        
-        # 스타일 적용 (SSOT)
-        self.recipe_table.setStyleSheet(UIStyles.get_table_style())
-        self.recipe_table.setAlternatingRowColors(True)
-        self.recipe_table.verticalHeader().setVisible(False)
-        
-        left_layout.addWidget(self.recipe_table)
-        
-        # 목록 제어 버튼
-        list_btn_layout = QHBoxLayout()
-        
-        new_btn = StyledButton("새 레시피", "primary")
-        new_btn.clicked.connect(self._new_recipe)
-        list_btn_layout.addWidget(new_btn)
-        
-        delete_btn = StyledButton("삭제", "danger")
-        delete_btn.clicked.connect(self._delete_recipe)
-        list_btn_layout.addWidget(delete_btn)
-        
-        list_btn_layout.addStretch()
-        left_layout.addLayout(list_btn_layout)
-        
-        left_widget.setLayout(left_layout)
-        splitter.addWidget(left_widget)
-        
-        # -----------------------------
-        # 오른쪽 패널: 레시피 편집
-        # -----------------------------
-        right_widget = QWidget()
-        right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(5, 0, 0, 0)
-        
-        # [그룹 1] 기본 정보
-        info_group = QGroupBox("레시피 정보")
-        info_layout = QVBoxLayout()
-        
-        # 헬퍼 함수: 작은 추가/삭제 버튼 생성
-        def create_small_btn(text, callback):
-            btn = StyledButton(text, "secondary")
-            btn.setFixedSize(28, 28)
-            btn.clicked.connect(callback)
-            return btn
+        splitter.addWidget(self._build_recipe_list_panel())
 
-        # 행 1: 레시피명
-        row1 = QHBoxLayout()
-        lbl1 = QLabel("레시피명:")
-        lbl1.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
-        row1.addWidget(lbl1)
-        
-        self.name_edit = QLineEdit()
-        self.name_edit.setStyleSheet(UIStyles.get_input_style())
-        row1.addWidget(self.name_edit)
-        info_layout.addLayout(row1)
-        
-        # 행 2: 거래처, 제품종류
-        row2 = QHBoxLayout()
-        
-        # 거래처
-        lbl2 = QLabel("거래처:")
-        lbl2.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
-        row2.addWidget(lbl2)
-        
-        self.company_combo = QComboBox()
-        self.company_combo.setEditable(False)
-        self.company_combo.setMinimumWidth(150)
-        self.company_combo.setStyleSheet(UIStyles.get_input_style())
-        row2.addWidget(self.company_combo)
-        
-        row2.addWidget(create_small_btn("+", lambda: self._add_category('company', self.company_combo)))
-        row2.addWidget(create_small_btn("-", lambda: self._delete_category('company', self.company_combo)))
-        
-        row2.addSpacing(15)
-        
-        # 제품종류
-        lbl3 = QLabel("제품종류:")
-        lbl3.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
-        row2.addWidget(lbl3)
-        
-        self.product_type_combo = QComboBox()
-        self.product_type_combo.setEditable(False)
-        self.product_type_combo.setMinimumWidth(150)
-        self.product_type_combo.setStyleSheet(UIStyles.get_input_style())
-        row2.addWidget(self.product_type_combo)
-        
-        row2.addWidget(create_small_btn("+", lambda: self._add_category('product_type', self.product_type_combo)))
-        row2.addWidget(create_small_btn("-", lambda: self._delete_category('product_type', self.product_type_combo)))
-        
-        row2.addStretch()
-        info_layout.addLayout(row2)
-        
-        # 행 3: 약품, 착용기간
-        row3 = QHBoxLayout()
-        
-        # 약품
-        lbl4 = QLabel("약품:")
-        lbl4.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
-        row3.addWidget(lbl4)
-        
-        self.drug_edit = QLineEdit()
-        self.drug_edit.setMinimumWidth(150)
-        self.drug_edit.setStyleSheet(UIStyles.get_input_style())
-        row3.addWidget(self.drug_edit)
-        
-        row3.addSpacing(15)
-        
-        # 착용기간
-        lbl5 = QLabel("착용기간:")
-        lbl5.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
-        row3.addWidget(lbl5)
-        
-        self.wear_period_combo = QComboBox()
-        self.wear_period_combo.setEditable(False)
-        self.wear_period_combo.setMinimumWidth(150)
-        self.wear_period_combo.setStyleSheet(UIStyles.get_input_style())
-        row3.addWidget(self.wear_period_combo)
-        
-        row3.addWidget(create_small_btn("+", lambda: self._add_category('wear_period', self.wear_period_combo)))
-        row3.addWidget(create_small_btn("-", lambda: self._delete_category('wear_period', self.wear_period_combo)))
-        
-        row3.addStretch()
-        info_layout.addLayout(row3)
-        
-        info_group.setLayout(info_layout)
-        right_layout.addWidget(info_group)
-        
-        # [그룹 2] 자재 목록
-        mat_group = QGroupBox("자재 목록")
-        mat_layout = QVBoxLayout()
-        
-        self.mat_table = QTableWidget()
-        self.mat_table.setColumnCount(3)
-        self.mat_table.setHorizontalHeaderLabels(["품목코드", "품목명", "배합비율(%)"])
-        header = self.mat_table.horizontalHeader()
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        
-        # 자재 테이블 스타일 적용
-        self.mat_table.setStyleSheet(UIStyles.get_table_style())
-        self.mat_table.setAlternatingRowColors(True)
-        self.mat_table.verticalHeader().setVisible(False)
-        
-        mat_layout.addWidget(self.mat_table)
-        
-        mat_btn_layout = QHBoxLayout()
-        
-        add_row_btn = StyledButton("행 추가", "secondary")
-        add_row_btn.clicked.connect(self._add_mat_row)
-        mat_btn_layout.addWidget(add_row_btn)
-        
-        remove_row_btn = StyledButton("행 삭제", "secondary")
-        remove_row_btn.clicked.connect(self._remove_mat_row)
-        mat_btn_layout.addWidget(remove_row_btn)
-        
-        mat_btn_layout.addStretch()
-        mat_layout.addLayout(mat_btn_layout)
-        
-        mat_group.setLayout(mat_layout)
-        right_layout.addWidget(mat_group)
-        
-        # 저장 버튼 (오른쪽 하단)
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(5, 0, 0, 0)
+        right_layout.addWidget(self._build_info_group())
+        right_layout.addWidget(self._build_material_group())
+
         save_btn_layout = QHBoxLayout()
         save_btn_layout.addStretch()
         save_btn = StyledButton("저장", "success")
@@ -227,31 +54,170 @@ class DhrRecipeManagerDialog(QDialog):
         save_btn.clicked.connect(self._save_recipe)
         save_btn_layout.addWidget(save_btn)
         right_layout.addLayout(save_btn_layout)
-        
-        right_widget.setLayout(right_layout)
         splitter.addWidget(right_widget)
-        
-        # 스플리터 설정
+
         splitter.setSizes([400, 800])
         splitter.setHandleWidth(2)
         splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {UITheme.BORDER_COLOR}; }}")
-        
+
         content_layout.addWidget(splitter)
         main_layout.addLayout(content_layout)
-        
-        # 최하단 닫기 버튼
+        main_layout.addLayout(self._build_bottom_bar())
+
+        center_window(self)
+
+    def _make_category_btn(self, text, callback) -> StyledButton:
+        """분류 +/- 버튼 팩토리 (28x28 secondary)."""
+        btn = StyledButton(text, "secondary")
+        btn.setFixedSize(28, 28)
+        btn.clicked.connect(callback)
+        return btn
+
+    def _build_recipe_list_panel(self) -> QWidget:
+        """좌측 레시피 목록 패널 (테이블 + 새 레시피/삭제 버튼)."""
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 5, 0)
+
+        title_lbl = QLabel("레시피 목록")
+        title_lbl.setStyleSheet(f"color: {UITheme.TEXT_PRIMARY}; font-weight: bold; font-size: 14px;")
+        left_layout.addWidget(title_lbl)
+
+        self.recipe_table = QTableWidget()
+        self.recipe_table.setColumnCount(6)
+        self.recipe_table.setHorizontalHeaderLabels(["ID", "레시피명", "거래처", "제품종류", "약품", "착용기간"])
+        self.recipe_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.recipe_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.recipe_table.clicked.connect(self._on_recipe_selected)
+        self.recipe_table.setColumnHidden(0, True)
+        self.recipe_table.setStyleSheet(UIStyles.get_table_style())
+        self.recipe_table.setAlternatingRowColors(True)
+        self.recipe_table.verticalHeader().setVisible(False)
+        left_layout.addWidget(self.recipe_table)
+
+        list_btn_layout = QHBoxLayout()
+        new_btn = StyledButton("새 레시피", "primary")
+        new_btn.clicked.connect(self._new_recipe)
+        list_btn_layout.addWidget(new_btn)
+        delete_btn = StyledButton("삭제", "danger")
+        delete_btn.clicked.connect(self._delete_recipe)
+        list_btn_layout.addWidget(delete_btn)
+        list_btn_layout.addStretch()
+        left_layout.addLayout(list_btn_layout)
+        return left_widget
+
+    def _build_info_group(self) -> QGroupBox:
+        """레시피 기본 정보 그룹 (3개 입력 행 조립)."""
+        info_group = QGroupBox("레시피 정보")
+        info_layout = QVBoxLayout()
+        info_layout.addLayout(self._build_name_row())
+        info_layout.addLayout(self._build_company_type_row())
+        info_layout.addLayout(self._build_drug_period_row())
+        info_group.setLayout(info_layout)
+        return info_group
+
+    def _build_name_row(self) -> QHBoxLayout:
+        """레시피명 입력 행."""
+        row = QHBoxLayout()
+        lbl = QLabel("레시피명:")
+        lbl.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
+        row.addWidget(lbl)
+        self.name_edit = QLineEdit()
+        self.name_edit.setStyleSheet(UIStyles.get_input_style())
+        row.addWidget(self.name_edit)
+        return row
+
+    def _build_company_type_row(self) -> QHBoxLayout:
+        """거래처 + 제품종류 입력 행 (콤보 + 추가/삭제 버튼)."""
+        row = QHBoxLayout()
+        lbl_company = QLabel("거래처:")
+        lbl_company.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
+        row.addWidget(lbl_company)
+        self.company_combo = QComboBox()
+        self.company_combo.setEditable(False)
+        self.company_combo.setMinimumWidth(150)
+        self.company_combo.setStyleSheet(UIStyles.get_input_style())
+        row.addWidget(self.company_combo)
+        row.addWidget(self._make_category_btn("+", lambda: self._add_category('company', self.company_combo)))
+        row.addWidget(self._make_category_btn("-", lambda: self._delete_category('company', self.company_combo)))
+        row.addSpacing(15)
+
+        lbl_type = QLabel("제품종류:")
+        lbl_type.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
+        row.addWidget(lbl_type)
+        self.product_type_combo = QComboBox()
+        self.product_type_combo.setEditable(False)
+        self.product_type_combo.setMinimumWidth(150)
+        self.product_type_combo.setStyleSheet(UIStyles.get_input_style())
+        row.addWidget(self.product_type_combo)
+        row.addWidget(self._make_category_btn("+", lambda: self._add_category('product_type', self.product_type_combo)))
+        row.addWidget(self._make_category_btn("-", lambda: self._delete_category('product_type', self.product_type_combo)))
+        row.addStretch()
+        return row
+
+    def _build_drug_period_row(self) -> QHBoxLayout:
+        """약품 + 착용기간 입력 행."""
+        row = QHBoxLayout()
+        lbl_drug = QLabel("약품:")
+        lbl_drug.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
+        row.addWidget(lbl_drug)
+        self.drug_edit = QLineEdit()
+        self.drug_edit.setMinimumWidth(150)
+        self.drug_edit.setStyleSheet(UIStyles.get_input_style())
+        row.addWidget(self.drug_edit)
+        row.addSpacing(15)
+
+        lbl_period = QLabel("착용기간:")
+        lbl_period.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY};")
+        row.addWidget(lbl_period)
+        self.wear_period_combo = QComboBox()
+        self.wear_period_combo.setEditable(False)
+        self.wear_period_combo.setMinimumWidth(150)
+        self.wear_period_combo.setStyleSheet(UIStyles.get_input_style())
+        row.addWidget(self.wear_period_combo)
+        row.addWidget(self._make_category_btn("+", lambda: self._add_category('wear_period', self.wear_period_combo)))
+        row.addWidget(self._make_category_btn("-", lambda: self._delete_category('wear_period', self.wear_period_combo)))
+        row.addStretch()
+        return row
+
+    def _build_material_group(self) -> QGroupBox:
+        """자재 목록 그룹 (테이블 + 행 추가/삭제 버튼)."""
+        mat_group = QGroupBox("자재 목록")
+        mat_layout = QVBoxLayout()
+
+        self.mat_table = QTableWidget()
+        self.mat_table.setColumnCount(3)
+        self.mat_table.setHorizontalHeaderLabels(["품목코드", "품목명", "배합비율(%)"])
+        header = self.mat_table.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        self.mat_table.setStyleSheet(UIStyles.get_table_style())
+        self.mat_table.setAlternatingRowColors(True)
+        self.mat_table.verticalHeader().setVisible(False)
+        mat_layout.addWidget(self.mat_table)
+
+        mat_btn_layout = QHBoxLayout()
+        add_row_btn = StyledButton("행 추가", "secondary")
+        add_row_btn.clicked.connect(self._add_mat_row)
+        mat_btn_layout.addWidget(add_row_btn)
+        remove_row_btn = StyledButton("행 삭제", "secondary")
+        remove_row_btn.clicked.connect(self._remove_mat_row)
+        mat_btn_layout.addWidget(remove_row_btn)
+        mat_btn_layout.addStretch()
+        mat_layout.addLayout(mat_btn_layout)
+
+        mat_group.setLayout(mat_layout)
+        return mat_group
+
+    def _build_bottom_bar(self) -> QHBoxLayout:
+        """최하단 닫기 버튼."""
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(10, 0, 10, 10)
         bottom_layout.addStretch()
-        
         close_btn = StyledButton("닫기", "secondary")
         close_btn.clicked.connect(self.close)
         bottom_layout.addWidget(close_btn)
-        
-        main_layout.addLayout(bottom_layout)
-        
-        center_window(self)
-    
+        return bottom_layout
+
     def _load_categories(self):
         """분류 항목 콤보박스 로드"""
         # 거래처
