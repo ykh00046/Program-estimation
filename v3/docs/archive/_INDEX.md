@@ -21,6 +21,7 @@
 | [orphan_docs/](./2026-04/orphan_docs/) | 01~02/ | 2026-04-14 | 이미 구현 완료된 사후 기록 (ui_theme, ux_improvements) |
 | [cycles/](./cycles/) | 04-report/features/ | 2026-04-14 | 사이클 번호 기반 표준 외 보고서 모음 |
 | [long_function_refactor.*](./2026-05/long_function_refactor/) | 01~04/features/ | 2026-05-19 | PDCA #13 완료 (_init_ui 5종 빌더 분해, Match 98%) |
+| [recipe_dialog_dead_code_removal.*](./2026-05/recipe_dialog_dead_code_removal/) | 01·04/features/ | 2026-05-19 | PDCA #14 완료 (데드 코드 DhrRecipeManagerDialog 삭제, −441 LOC) |
 
 ## Note
 
