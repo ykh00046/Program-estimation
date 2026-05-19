@@ -47,6 +47,11 @@ v3/config/config.json
 .tmp_*
 .tmp_review/
 
+# smoke test & temp artifacts
+.smoke_appdata*/
+**/temp_test/
+실적서/
+
 # Exports
 *.pdf
 *.xlsx
