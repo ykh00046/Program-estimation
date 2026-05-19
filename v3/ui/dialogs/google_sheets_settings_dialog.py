@@ -132,7 +132,7 @@ if __name__ == '__main__':
     
     dialog = GoogleSheetsSettingsDialog()
     if dialog.exec():
-        print("설정 저장됨")
+        logger.info("설정 저장됨")
     else:
-        print("설정 취소됨")
+        logger.info("설정 취소됨")
     sys.exit(app.exec())

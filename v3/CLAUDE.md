@@ -134,7 +134,7 @@ logger.error(f\"데이터베이스 연결 실패: {error}\")
 ## Module Structure
 
 ```
-v3/main/
+v3/
 ├── config/              # 설정 관리
 │   ├── settings.py      # 경로, 환경 설정
 │   ├── config.json      # 런타임 설정
