@@ -20,6 +20,7 @@ from ui.widgets.pasteable_table import PasteableTableWidget
 from config.config_manager import config
 from utils.logger import logger
 from models.dhr_database import DhrDatabaseManager
+from typing import Optional
 from qfluentwidgets import (
     CardWidget, LineEdit, DoubleSpinBox, DateEdit, TimeEdit, CheckBox
 )
@@ -303,7 +304,27 @@ class ManualInputInterface(QScrollArea):
 
         self._recalc_theory()
         data = self._collect_data()
+        details_data = self._build_details_for_export(data)
 
+        saved_lot = self._persist_dhr_record(data, details_data)
+        if saved_lot is None:
+            return
+        data["product_lot"] = saved_lot
+
+        try:
+            excel_path, pdf_path = self._run_export_pipeline(data, details_data)
+            self._notify_save_result(saved_lot, excel_path, pdf_path)
+            logger.info(f"DHR export finished: {data['product_name']}")
+        except Exception as e:
+            logger.error(f"DHR export failed after DB save: {e}")
+            QMessageBox.warning(
+                self,
+                "Partial Success",
+                f"DB save succeeded but export failed.\n\nLOT: {saved_lot}\n{e}",
+            )
+
+    def _build_details_for_export(self, data: dict) -> list:
+        """테이블의 자재 행을 export용 details_data로 변환."""
         details_data = []
         for row in range(self.table.rowCount()):
             if self._is_empty_material_row(row):
@@ -317,7 +338,10 @@ class ManualInputInterface(QScrollArea):
                 "theory_amount": self._to_float(self._table_text(row, 3)),
                 "actual_amount": self._to_float(self._table_text(row, 4)),
             })
+        return details_data
 
+    def _persist_dhr_record(self, data: dict, details_data: list) -> Optional[str]:
+        """DHR DB 저장. 성공 시 LOT 반환, 실패 시 critical popup + None."""
         try:
             saved_lot = self.dhr_db.generate_product_lot(data["product_name"], data["work_date"])
             record_data = {
@@ -330,53 +354,47 @@ class ManualInputInterface(QScrollArea):
                 "scale": config.default_scale,
             }
             self.dhr_db.save_dhr_record(record_data, details_data)
-            data["product_lot"] = saved_lot
             self.product_lot_edit.setText(saved_lot)
             logger.info(f"DHR record saved: {saved_lot}")
+            return saved_lot
         except Exception as e:
             logger.error(f"DHR DB save failed: {e}")
             QMessageBox.critical(self, "Error", f"DB save failed.\n{e}")
-            return
+            return None
 
-        try:
-            from models.excel_exporter import ExcelExporter
-            import os
+    def _run_export_pipeline(self, data: dict, details_data: list) -> tuple:
+        """Excel + PDF 출력. Excel 실패 시 RuntimeError raise. PDF 실패 시 (excel, None)."""
+        from models.excel_exporter import ExcelExporter
+        exporter = ExcelExporter()
+        export_data = {
+            "product_lot": data["product_lot"],
+            "recipe_name": data["product_name"],
+            "work_date": data["work_date"],
+            "work_time": data["work_time"] if data["include_time"] else "",
+            "worker": self.worker_name,
+            "total_amount": data["amount"],
+            "materials": details_data,
+            "scale": config.default_scale,
+        }
+        excel_path = exporter.export_to_excel(export_data, include_work_time=data["include_time"])
+        if not excel_path:
+            raise RuntimeError("Excel export failed")
+        effects_params = self.scan_effects_panel.get_data()
+        pdf_path = exporter.export_to_pdf(excel_path, effects_params)
+        return excel_path, pdf_path
 
-            exporter = ExcelExporter()
-            export_data = {
-                "product_lot": data["product_lot"],
-                "recipe_name": data["product_name"],
-                "work_date": data["work_date"],
-                "work_time": data["work_time"] if data["include_time"] else "",
-                "worker": self.worker_name,
-                "total_amount": data["amount"],
-                "materials": details_data,
-                "scale": config.default_scale,
-            }
-            excel_path = exporter.export_to_excel(export_data, include_work_time=data["include_time"])
-            if not excel_path:
-                raise RuntimeError("Excel export failed")
-
-            effects_params = self.scan_effects_panel.get_data()
-            pdf_path = exporter.export_to_pdf(excel_path, effects_params)
-
-            msg = f"Saved.\n\nLOT: {data['product_lot']}\nExcel: {os.path.basename(excel_path)}"
-            if pdf_path:
-                msg += f"\nPDF: {os.path.basename(pdf_path)}"
-                QMessageBox.information(self, "Done", msg)
-            else:
-                QMessageBox.warning(
-                    self,
-                    "Partial Success",
-                    f"DB save succeeded but PDF export failed.\n\nLOT: {data['product_lot']}\nExcel: {os.path.basename(excel_path)}",
-                )
-            logger.info(f"DHR export finished: {data['product_name']}")
-        except Exception as e:
-            logger.error(f"DHR export failed after DB save: {e}")
+    def _notify_save_result(self, lot: str, excel_path: str, pdf_path) -> None:
+        """저장 결과 메시지박스 (전체 성공 / PDF 실패 부분 성공)."""
+        import os
+        msg = f"Saved.\n\nLOT: {lot}\nExcel: {os.path.basename(excel_path)}"
+        if pdf_path:
+            msg += f"\nPDF: {os.path.basename(pdf_path)}"
+            QMessageBox.information(self, "Done", msg)
+        else:
             QMessageBox.warning(
                 self,
                 "Partial Success",
-                f"DB save succeeded but export failed.\n\nLOT: {data['product_lot']}\n{e}",
+                f"DB save succeeded but PDF export failed.\n\nLOT: {lot}\nExcel: {os.path.basename(excel_path)}",
             )
 
     def _open_record_view(self):
