@@ -4,12 +4,12 @@
 >
 > **Author**: AI Assistant  
 > **Created**: 2026-01-31  
-> **Last Updated**: 2026-05-19  
-> **Status**: 🔄 In Progress (8/10 완료)
+> **Last Updated**: 2026-05-23  
+> **Status**: 🔄 In Progress (9/10 완료)
 
 ---
 
-## 진행 현황 (2026-05-19 갱신)
+## 진행 현황 (2026-05-23 갱신)
 
 | # | 항목 | 상태 | 비고 |
 | --- | --- | --- | --- |
@@ -21,10 +21,10 @@
 | 6 | PyInstaller 설정 보강 | ✅ 완료 | `build.py:37` hidden imports |
 | 7 | 테스트 커버리지 향상 | ✅ 완료 | `run_tests.py` + 65 테스트 통과 |
 | 8 | 레거시 파일 정리 | ✅ 완료 | `data_manager_utf8.py` 제거됨 |
-| 9 | 함수 길이 리팩토링 | ⏳ 미착수 | `database.save_mixing_record` 등 |
+| 9 | 함수 길이 리팩토링 | ✅ 완료 | PDCA #7/#15/#16에서 분담 종결 (`database.save_mixing_record`/`record_view_dialog.save_changes` 등) |
 | 10 | 중복 코드 제거 (DRY) | ⏳ 미착수 | 범위 재정의 필요 |
 
-> 미완료 항목(#2, #9, #10)은 향후 PDCA 사이클에서 다룬다. 아래 본문은 작성 당시(2026-01-31) 원문이다.
+> 미완료 항목(#2, #10)은 향후 PDCA 사이클에서 다룬다. 아래 본문은 작성 당시(2026-01-31) 원문이다.
 
 ---
 
