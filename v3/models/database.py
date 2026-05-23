@@ -132,60 +132,66 @@ class DatabaseManager:
     def save_mixing_record(self, record_data: Dict, details: List[Dict]) -> int:
         """
         배합 기록을 저장합니다.
-        
+
         Args:
             record_data: 기본 배합 정보
             details: 상세 배합 정보 리스트
-        
+
         Returns:
             저장된 레코드의 ID
         """
         with self.get_connection() as conn:
-            # 기본 기록 저장
-            cursor = conn.execute("""
-                INSERT INTO mixing_records 
-                (product_lot, recipe_name, worker, work_date, work_time, total_amount, scale)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                record_data['product_lot'],
-                record_data['recipe_name'],
-                record_data['worker'],
-                record_data['work_date'],
-                record_data['work_time'],
-                record_data['total_amount'],
-                record_data['scale']
-            ))
-            
-            record_id = cursor.lastrowid
-            
-            # 상세 기록 저장
-            for i, detail in enumerate(details):
-                conn.execute("""
-                    INSERT INTO mixing_details 
-                    (mixing_record_id, material_code, material_name, material_lot, 
-                     ratio, theory_amount, actual_amount, sequence_order)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    record_id,
-                    detail['material_code'],
-                    detail['material_name'],
-                    detail['material_lot'],
-                    detail['ratio'],
-                    detail['theory_amount'],
-                    detail['actual_amount'],
-                    i + 1
-                ))
-            
+            record_id = self._insert_mixing_record_row(conn, record_data)
+            self._insert_mixing_detail_rows(conn, record_id, details)
             conn.commit()
-            logger.log_mixing_operation(
-                "기록저장", 
-                record_data['recipe_name'],
-                record_data['worker'],
-                product_lot=record_data['product_lot'],
-                record_id=record_id
-            )
-        
+            self._log_record_saved(record_data, record_id)
         return record_id
+
+    def _insert_mixing_record_row(self, conn, record_data: Dict) -> int:
+        """mixing_records 행 1건을 삽입하고 lastrowid를 반환한다."""
+        cursor = conn.execute("""
+            INSERT INTO mixing_records
+            (product_lot, recipe_name, worker, work_date, work_time, total_amount, scale)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            record_data['product_lot'],
+            record_data['recipe_name'],
+            record_data['worker'],
+            record_data['work_date'],
+            record_data['work_time'],
+            record_data['total_amount'],
+            record_data['scale'],
+        ))
+        return cursor.lastrowid
+
+    def _insert_mixing_detail_rows(self, conn, record_id: int, details: List[Dict]) -> None:
+        """mixing_details 행 N건을 sequence_order와 함께 삽입한다."""
+        for i, detail in enumerate(details):
+            conn.execute("""
+                INSERT INTO mixing_details
+                (mixing_record_id, material_code, material_name, material_lot,
+                 ratio, theory_amount, actual_amount, sequence_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record_id,
+                detail['material_code'],
+                detail['material_name'],
+                detail['material_lot'],
+                detail['ratio'],
+                detail['theory_amount'],
+                detail['actual_amount'],
+                i + 1,
+            ))
+
+    def _log_record_saved(self, record_data: Dict, record_id: int) -> None:
+        """저장 완료 이벤트를 운영 로그에 남긴다."""
+        logger.log_mixing_operation(
+            "기록저장",
+            record_data['recipe_name'],
+            record_data['worker'],
+            product_lot=record_data['product_lot'],
+            record_id=record_id,
+        )
     
     @handle_exceptions(user_message="배합 기록 조회 중 오류가 발생했습니다.", default_return=[])
     def get_mixing_records(self, 
