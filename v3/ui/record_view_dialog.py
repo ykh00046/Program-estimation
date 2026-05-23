@@ -265,68 +265,88 @@ class RecordDetailDialog(QDialog):
     
     def save_changes(self):
         """변경 사항 저장"""
-        reply = QMessageBox.question(
-            self, "수정 확인", 
-            "정말 기록을 수정하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.",
-            QMessageBox.Yes | QMessageBox.No, 
-            QMessageBox.No
-        )
-        
-        if reply == QMessageBox.No:
+        if not self._confirm_save_changes():
             return
-        
         try:
-            product_lot = self.lot_data.iloc[0]['product_lot']
-            
-            # 수집된 데이터
-            new_worker = self.worker_edit.text().strip()
-            new_amount = float(self.amount_edit.text().strip())
-            
-            # 테이블에서 수정된 데이터 수집
-            materials_updates = []
-            for row in range(self.table.rowCount()):
-                material_code = self.table.item(row, 0).text()
-                materials_updates.append({
-                    'material_code': material_code,
-                    'material_lot': self.table.item(row, 2).text(),
-                    'ratio': float(self.table.item(row, 3).text() or 0),
-                    'theory_amount': float(self.table.item(row, 4).text() or 0),
-                    'actual_amount': float(self.table.item(row, 5).text() or 0),
-                })
-            
-            # 데이터베이스 업데이트
+            form = self._collect_edit_form()
             success = self.data_manager.update_record(
-                product_lot=product_lot,
-                worker=new_worker,
-                total_amount=new_amount,
-                materials=materials_updates
+                product_lot=form['product_lot'],
+                worker=form['worker'],
+                total_amount=form['amount'],
+                materials=form['materials'],
             )
-            
-            if success:
-                QMessageBox.information(self, "수정 완료", "기록이 성공적으로 수정되었습니다.")
-                logger.info(f"기록 수정 완료: LOT {product_lot}")
-                
-                # 편집 모드 종료 및 데이터 새로고침
-                self.edit_mode = False
-                self.edit_btn.setText("수정 모드")
-                self.save_btn.setEnabled(False)
-                self.worker_edit.setReadOnly(True)
-                self.amount_edit.setReadOnly(True)
-                self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-                self.worker_edit.setStyleSheet(UIStyles.get_input_style())
-                self.amount_edit.setStyleSheet(UIStyles.get_input_style())
-                
-                # lot_data 업데이트
-                self.lot_data = self.data_manager.get_all_records_df()
-                self.lot_data = self.lot_data[self.lot_data['product_lot'] == product_lot]
-            else:
-                QMessageBox.warning(self, "수정 실패", "기록 수정에 실패했습니다.")
-                
+            self._handle_update_result(success, form['product_lot'])
         except ValueError as e:
             QMessageBox.warning(self, "입력 오류", f"숫자 형식이 올바르지 않습니다.\n{e}")
         except Exception as e:
             logger.error(f"기록 수정 오류: {e}")
             QMessageBox.critical(self, "오류", f"기록 수정 중 오류가 발생했습니다.\n{e}")
+
+    def _confirm_save_changes(self) -> bool:
+        """수정 확인 다이얼로그. Yes만 True."""
+        reply = QMessageBox.question(
+            self, "수정 확인",
+            "정말 기록을 수정하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        return reply == QMessageBox.Yes
+
+    def _collect_edit_form(self) -> dict:
+        """편집 폼의 값과 테이블 데이터를 수집해 dict로 반환."""
+        rows = [
+            [
+                self.table.item(r, c).text() if self.table.item(r, c) else ""
+                for c in range(self.table.columnCount())
+            ]
+            for r in range(self.table.rowCount())
+        ]
+        return {
+            'product_lot': self.lot_data.iloc[0]['product_lot'],
+            'worker': self.worker_edit.text().strip(),
+            'amount': float(self.amount_edit.text().strip()),
+            'materials': self._collect_material_updates_from_rows(rows),
+        }
+
+    @staticmethod
+    def _collect_material_updates_from_rows(rows: List[List[str]]) -> List[dict]:
+        """테이블 행(문자열 리스트)에서 자재 업데이트 dict 리스트를 만든다."""
+        return [
+            {
+                'material_code': r[0],
+                'material_lot': r[2],
+                'ratio': float(r[3] or 0),
+                'theory_amount': float(r[4] or 0),
+                'actual_amount': float(r[5] or 0),
+            }
+            for r in rows
+        ]
+
+    def _handle_update_result(self, success: bool, product_lot: str) -> None:
+        """업데이트 결과에 따라 사용자 알림 및 UI 상태를 갱신."""
+        if success:
+            QMessageBox.information(self, "수정 완료", "기록이 성공적으로 수정되었습니다.")
+            logger.info(f"기록 수정 완료: LOT {product_lot}")
+            self._exit_edit_mode()
+            self._refresh_lot_data(product_lot)
+        else:
+            QMessageBox.warning(self, "수정 실패", "기록 수정에 실패했습니다.")
+
+    def _exit_edit_mode(self) -> None:
+        """편집 모드 종료: 위젯 ReadOnly·스타일·버튼 상태 복원."""
+        self.edit_mode = False
+        self.edit_btn.setText("수정 모드")
+        self.save_btn.setEnabled(False)
+        self.worker_edit.setReadOnly(True)
+        self.amount_edit.setReadOnly(True)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.worker_edit.setStyleSheet(UIStyles.get_input_style())
+        self.amount_edit.setStyleSheet(UIStyles.get_input_style())
+
+    def _refresh_lot_data(self, product_lot: str) -> None:
+        """저장 후 해당 product_lot의 lot_data 재조회."""
+        self.lot_data = self.data_manager.get_all_records_df()
+        self.lot_data = self.lot_data[self.lot_data['product_lot'] == product_lot]
 
     def export_report(self):
         """실적서 출력"""
