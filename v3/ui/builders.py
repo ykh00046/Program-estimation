@@ -218,6 +218,9 @@ def register_sidebar_interfaces(window) -> None:
     # 4-1. DHR 설정 3-way sync (Manual/Bulk 생성 직후)
     window._setup_dhr_settings_sync()
 
+    # 4-2. 대시보드 (PDCA #17)
+    window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")
+
     # 5. 기록 조회
     records_page = build_action_page(
         "기록 조회",

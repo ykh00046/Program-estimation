@@ -33,6 +33,7 @@ from ui.panels.signature_panel import SignaturePanel
 from ui.panels.work_info_panel import WorkInfoPanel
 from ui.panels.recipe_panel import RecipePanel
 from ui.panels.material_table_panel import MaterialTablePanel
+from ui.panels.dashboard_panel import DashboardPanel
 
 
 @dataclass
@@ -152,6 +153,9 @@ class MainWindow(FluentWindow):
         # PDF/서명 패널 (다이얼로그에서 사용)
         self.scan_effects_panel = ScanEffectsPanel()
         self.signature_panel = SignaturePanel()
+
+        # 대시보드 패널 (PDCA #17)
+        self.dashboard_panel = DashboardPanel(self.data_manager)
 
         self.recipe_controller = RecipeController(
             data_manager=self.data_manager,
