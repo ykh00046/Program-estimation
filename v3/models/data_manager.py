@@ -439,3 +439,41 @@ class DataManager:
     def load_recipes(self) -> None:
         """Reload recipes from Excel."""
         self.recipes = self._load_recipes_from_excel()
+
+    # ------------------------------------------------------------------
+    # Dashboard 집계 위임 (PDCA #17)
+    # ------------------------------------------------------------------
+
+    def get_monthly_production_stats(self, months: int = 6) -> List[Dict]:
+        """최근 N개월 월별 생산 통계."""
+        return self.db_manager.get_monthly_production_stats(months=months)
+
+    def get_top_materials(
+        self,
+        limit: int = 10,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """기간 내 자재 사용량 TOP-N."""
+        return self.db_manager.get_top_materials(
+            limit=limit, start_date=start_date, end_date=end_date
+        )
+
+    def get_worker_stats(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """기간 내 작업자별 통계."""
+        return self.db_manager.get_worker_stats(start_date=start_date, end_date=end_date)
+
+    def get_recipe_frequency(
+        self,
+        limit: int = 10,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """기간 내 레시피 실행 빈도 TOP-N."""
+        return self.db_manager.get_recipe_frequency(
+            limit=limit, start_date=start_date, end_date=end_date
+        )

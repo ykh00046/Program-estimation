@@ -513,3 +513,120 @@ class DatabaseManager:
             names = [row['material_name'] for row in cursor.fetchall()]
             logger.debug(f"전체 고유 품목명 조회: {len(names)}건")
             return names
+
+    # ------------------------------------------------------------------
+    # Dashboard 집계 쿼리 (PDCA #17)
+    # ------------------------------------------------------------------
+
+    @handle_exceptions(user_message="월별 생산 통계 조회 중 오류가 발생했습니다.", default_return=[])
+    def get_monthly_production_stats(self, months: int = 6) -> List[Dict]:
+        """최근 N개월 월별 생산 통계 (오래된 순)."""
+        if months <= 0:
+            return []
+        modifier = "-{0} months".format(months)
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT strftime('%Y-%m', work_date) AS year_month,
+                       COUNT(*) AS record_count,
+                       COALESCE(SUM(total_amount), 0) AS total_amount
+                FROM mixing_records
+                WHERE work_date >= date('now', ?)
+                GROUP BY year_month
+                ORDER BY year_month ASC
+                """,
+                (modifier,),
+            )
+            rows = [dict(row) for row in cursor.fetchall() if row["year_month"]]
+            logger.debug(f"월별 생산 통계 조회: {len(rows)}개월")
+            return rows
+
+    @handle_exceptions(user_message="자재 사용량 집계 중 오류가 발생했습니다.", default_return=[])
+    def get_top_materials(
+        self,
+        limit: int = 10,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """기간 내 자재 사용량 TOP-N."""
+        query = (
+            "SELECT d.material_code, d.material_name, "
+            "       SUM(d.actual_amount) AS total_actual, "
+            "       COUNT(DISTINCT d.mixing_record_id) AS use_count "
+            "FROM mixing_details d "
+            "JOIN mixing_records r ON d.mixing_record_id = r.id "
+            "WHERE 1=1"
+        )
+        params: List = []
+        if start_date:
+            query += " AND r.work_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND r.work_date <= ?"
+            params.append(end_date)
+        query += " GROUP BY d.material_code, d.material_name ORDER BY total_actual DESC LIMIT ?"
+        params.append(limit)
+        with self.get_connection() as conn:
+            cursor = conn.execute(query, params)
+            rows = [dict(row) for row in cursor.fetchall()]
+            logger.debug(f"자재 TOP-{limit} 조회: {len(rows)}건")
+            return rows
+
+    @handle_exceptions(user_message="작업자별 통계 조회 중 오류가 발생했습니다.", default_return=[])
+    def get_worker_stats(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """기간 내 작업자별 통계 (건수 desc)."""
+        query = (
+            "SELECT worker, "
+            "       COUNT(*) AS record_count, "
+            "       COALESCE(SUM(total_amount), 0) AS total_amount, "
+            "       COALESCE(AVG(total_amount), 0) AS avg_amount "
+            "FROM mixing_records "
+            "WHERE 1=1"
+        )
+        params: List = []
+        if start_date:
+            query += " AND work_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND work_date <= ?"
+            params.append(end_date)
+        query += " GROUP BY worker ORDER BY record_count DESC"
+        with self.get_connection() as conn:
+            cursor = conn.execute(query, params)
+            rows = [dict(row) for row in cursor.fetchall()]
+            logger.debug(f"작업자 통계 조회: {len(rows)}명")
+            return rows
+
+    @handle_exceptions(user_message="레시피 빈도 집계 중 오류가 발생했습니다.", default_return=[])
+    def get_recipe_frequency(
+        self,
+        limit: int = 10,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        """기간 내 레시피 실행 빈도 TOP-N."""
+        query = (
+            "SELECT recipe_name, "
+            "       COUNT(*) AS run_count, "
+            "       COALESCE(SUM(total_amount), 0) AS total_amount "
+            "FROM mixing_records "
+            "WHERE 1=1"
+        )
+        params: List = []
+        if start_date:
+            query += " AND work_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND work_date <= ?"
+            params.append(end_date)
+        query += " GROUP BY recipe_name ORDER BY run_count DESC LIMIT ?"
+        params.append(limit)
+        with self.get_connection() as conn:
+            cursor = conn.execute(query, params)
+            rows = [dict(row) for row in cursor.fetchall()]
+            logger.debug(f"레시피 빈도 TOP-{limit} 조회: {len(rows)}건")
+            return rows
