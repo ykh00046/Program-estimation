@@ -608,8 +608,4 @@ class MixingDatabaseManager(SqliteManagerBase):
             return rows
 
 
-# 하위 호환 별칭 — 외부 import 깨짐 방지 (PDCA #18).
-# 향후 호출자(`data_manager.py` 등)를 일괄 변경한 뒤 별도 사이클에서 제거 가능.
-DatabaseManager = MixingDatabaseManager
-
-__all__ = ["MixingDatabaseManager", "DatabaseManager"]
+__all__ = ["MixingDatabaseManager"]
