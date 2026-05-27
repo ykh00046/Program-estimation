@@ -1,58 +1,41 @@
-"""
-DHR 전용 데이터베이스 관리 모듈
-기존 배합 기록과 분리된 별도 데이터베이스 사용
-Google Sheets 백업 없음
+"""DHR(Device History Record) 전용 SQLite 매니저 (PDCA #18).
+
+책임 경계:
+- DB 파일: DHR_DB_FILE (기본 dhr_records.db)
+- 테이블: dhr_records, dhr_details, dhr_recipes, dhr_recipe_materials, dhr_recipe_categories
+- 도메인: DHR 기록 + DHR 전용 레시피 시스템(거래처/제품종류/약품/착용기간)
+- product_lot UNIQUE 제약 (PDCA #8)
+- Google Sheets 백업 미지원
+- 레거시 DB 마이그레이션 없음 (DHR 시스템 자체가 신규)
+
+일반 배합 기록은 MixingDatabaseManager(models.database)가 별도 DB 파일에서 관리한다.
+두 매니저는 SqliteManagerBase(models._sqlite_base)를 공유한다.
 """
 import os
 import sqlite3
-from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from config.settings import USER_DATA_DIR
+from models._sqlite_base import SqliteManagerBase
 from utils.logger import logger
-from utils.error_handler import DatabaseError, handle_exceptions
+from utils.error_handler import handle_exceptions
 
 
 # DHR 전용 DB 파일 경로
 DHR_DB_FILE = os.path.join(USER_DATA_DIR, "dhr_records.db")
 
 
-class DhrDatabaseManager:
+class DhrDatabaseManager(SqliteManagerBase):
     """DHR 전용 데이터베이스 관리 클래스"""
-    
+
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             db_path = DHR_DB_FILE
-        
-        self.db_path = db_path
-        self._ensure_database_exists()
+        super().__init__(db_path, log_prefix="DHR 데이터베이스")
         self._create_tables()
         logger.info(f"DHR 데이터베이스 초기화 완료: {self.db_path}")
-    
-    def _ensure_database_exists(self):
-        """데이터베이스 디렉토리가 존재하는지 확인하고 생성"""
-        db_dir = os.path.dirname(self.db_path)
-        os.makedirs(db_dir, exist_ok=True)
-    
-    @contextmanager
-    def get_connection(self):
-        """데이터베이스 연결 컨텍스트 매니저"""
-        conn = None
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.execute("PRAGMA foreign_keys = ON")
-            conn.row_factory = sqlite3.Row
-            yield conn
-        except sqlite3.Error as e:
-            if conn:
-                conn.rollback()
-            logger.error(f"DHR 데이터베이스 오류: {e}")
-            raise DatabaseError(f"DHR 데이터베이스 연결 오류: {e}")
-        finally:
-            if conn:
-                conn.close()
-    
+
     @handle_exceptions(user_message="DHR 테이블 생성 중 오류가 발생했습니다.")
     def _create_tables(self):
         """필요한 테이블들을 생성"""

@@ -1,6 +1,6 @@
 """대시보드용 집계 쿼리 단위 테스트 (PDCA #17).
 
-`DatabaseManager` 신규 메서드 4종 (get_monthly_production_stats,
+`MixingDatabaseManager` 신규 메서드 4종 (get_monthly_production_stats,
 get_top_materials, get_worker_stats, get_recipe_frequency) 회귀 안전망.
 """
 import os
@@ -17,11 +17,11 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 
-from models.database import DatabaseManager  # noqa: E402
+from models.database import MixingDatabaseManager  # noqa: E402
 
 
 def _make_record(
-    db: DatabaseManager,
+    db: MixingDatabaseManager,
     *,
     product_lot: str,
     recipe_name: str,
@@ -64,7 +64,7 @@ class AggregateQueryTests(unittest.TestCase):
         )
         self._legacy_patch.start()
         db_path = os.path.join(self.tmpdir.name, "test_mixing.db")
-        self.db = DatabaseManager(db_path=db_path)
+        self.db = MixingDatabaseManager(db_path=db_path)
 
     def tearDown(self):
         self._legacy_patch.stop()

@@ -14,8 +14,8 @@ from models.data_manager import DataManager
 class TestDataManager(unittest.TestCase):
 
     def setUp(self):
-        # Mock DatabaseManager
-        self.patcher_db = patch('models.data_manager.DatabaseManager')
+        # Mock MixingDatabaseManager
+        self.patcher_db = patch('models.data_manager.MixingDatabaseManager')
         self.MockDatabaseManager = self.patcher_db.start()
         self.db_manager_mock = self.MockDatabaseManager.return_value
 

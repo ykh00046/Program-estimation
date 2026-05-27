@@ -11,7 +11,7 @@ from config.config_manager import config
 from config.google_sheets_config import GoogleSheetsConfig
 from config.settings import LOT_FILE, RECIPE_FILE
 from models.backup.google_sheets_backup import GoogleSheetsBackup
-from models.database import DatabaseManager
+from models.database import MixingDatabaseManager
 from models.lot_manager import LotManager
 from utils.logger import logger
 
@@ -20,7 +20,7 @@ class DataManager:
     """데이터 관리 클래스 (DB 기반)"""
 
     def __init__(self):
-        self.db_manager = DatabaseManager()
+        self.db_manager = MixingDatabaseManager()
         self.lot_manager = LotManager(LOT_FILE)
         self.google_sheets_config = GoogleSheetsConfig()
         self.google_sheets_backup = GoogleSheetsBackup(self.google_sheets_config)

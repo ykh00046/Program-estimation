@@ -13,27 +13,22 @@ sys.path.insert(0, project_root)
 
 from models.data_manager import DataManager
 from config.settings import DB_FILE # Original DB path to be patched
-from models.database import DatabaseManager
+from models.database import MixingDatabaseManager
 
 class TestDataIntegration(unittest.TestCase):
-    
+
     def setUp(self):
         # Create a temporary directory for the test DB
         self.test_dir = tempfile.mkdtemp()
         self.test_db_path = os.path.join(self.test_dir, 'test_mixing.db')
-        
+
         # Initialize DataManager with test DB
-        # We need to monkeypatch or inject dependencies. 
-        # Since DataManager creates DatabaseManager internally, 
-        # we'll patch DatabaseManager's DB path or use a custom factory if refactored.
-        # Here we rely on patching `config.settings.DB_FILE` or `models.database.DB_FILE`?
-        # Actually DatabaseManager takes db_path in init.
-        
-        # Patching DataManager to use a DatabaseManager with test_db_path
+        # DataManager creates MixingDatabaseManager internally, so we patch its __init__
+        # to inject a MixingDatabaseManager pointed at the test_db_path.
         self._original_init = DataManager.__init__
-        
+
         def test_init(instance):
-            instance.db_manager = DatabaseManager(self.test_db_path)
+            instance.db_manager = MixingDatabaseManager(self.test_db_path)
             from models.lot_manager import LotManager
             instance.lot_manager = LotManager(os.path.join(self.test_dir, 'lots.xlsx'))
             instance.recipes = {}

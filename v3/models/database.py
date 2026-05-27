@@ -1,36 +1,30 @@
-"""
-데이터베이스 관리 모듈
-SQLite를 사용한 배합 기록 관리
+"""배합 기록(`mixing_records.db`) 전용 데이터베이스 매니저.
+
+이 모듈은 일반 배합 작업의 `mixing_records` / `mixing_details` / `recipes` 테이블만 다룬다.
+DHR(Device History Record) 데이터는 `models.dhr_database.DhrDatabaseManager`를 사용하라.
+
+공통 인프라(`get_connection`, `_ensure_database_exists`)는 `models._sqlite_base.SqliteManagerBase`에 위치한다.
 """
 import os
-import sqlite3
-from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from config.settings import DB_FILE, LEGACY_DB_PATH, USER_DATA_DIR
 from utils.logger import logger
-from utils.error_handler import DatabaseError, handle_exceptions
+from utils.error_handler import handle_exceptions
+from models._sqlite_base import SqliteManagerBase
 
 
-class DatabaseManager:
-    """데이터베이스 관리 클래스"""
-    
+class MixingDatabaseManager(SqliteManagerBase):
+    """`mixing_records.db`만 다루는 매니저 (일반 배합 기록 + 레거시 레시피)."""
+
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             db_path = DB_FILE
-        
-        self.db_path = db_path
-        self._ensure_database_exists()
+        super().__init__(db_path, log_prefix="데이터베이스")
         self._migrate_legacy_db()
         self._create_tables()
         logger.info(f"데이터베이스 초기화 완료: {self.db_path}")
-
-    
-    def _ensure_database_exists(self):
-        """데이터베이스 디렉토리가 존재하는지 확인하고 생성"""
-        db_dir = os.path.dirname(self.db_path)
-        os.makedirs(db_dir, exist_ok=True)
 
     def _migrate_legacy_db(self):
         """
@@ -48,25 +42,7 @@ class DatabaseManager:
                 logger.info(f"레거시 DB를 신규 경로로 복사했습니다: {self.db_path}")
             except OSError as e:
                 logger.warning(f"레거시 DB 복사 실패({LEGACY_DB_PATH} -> {self.db_path}): {e}")
-    
-    @contextmanager
-    def get_connection(self):
-        """데이터베이스 연결 컨텍스트 매니저"""
-        conn = None
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.execute("PRAGMA foreign_keys = ON")
-            conn.row_factory = sqlite3.Row  # 딕셔너리 형태로 결과 반환
-            yield conn
-        except sqlite3.Error as e:
-            if conn:
-                conn.rollback()
-            logger.error(f"데이터베이스 오류: {e}")
-            raise DatabaseError(f"데이터베이스 연결 오류: {e}")
-        finally:
-            if conn:
-                conn.close()
-    
+
     @handle_exceptions(user_message="데이터베이스 테이블 생성 중 오류가 발생했습니다.")
     def _create_tables(self):
         """필요한 테이블들을 생성"""
@@ -630,3 +606,10 @@ class DatabaseManager:
             rows = [dict(row) for row in cursor.fetchall()]
             logger.debug(f"레시피 빈도 TOP-{limit} 조회: {len(rows)}건")
             return rows
+
+
+# 하위 호환 별칭 — 외부 import 깨짐 방지 (PDCA #18).
+# 향후 호출자(`data_manager.py` 등)를 일괄 변경한 뒤 별도 사이클에서 제거 가능.
+DatabaseManager = MixingDatabaseManager
+
+__all__ = ["MixingDatabaseManager", "DatabaseManager"]
