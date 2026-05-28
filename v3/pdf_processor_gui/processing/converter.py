@@ -167,7 +167,7 @@ class PdfConverter(QObject):
 
             return True, "이미지 → PDF 변환 완료"
 
-        except Exception as e:
+        except (OSError, IOError) as e:
             return False, f"이미지 → PDF 변환 오류: {str(e)}"
 
     def _cleanup(self):
@@ -175,5 +175,5 @@ class PdfConverter(QObject):
         if self.temp_pdf_path and os.path.exists(self.temp_pdf_path):
             try:
                 os.remove(self.temp_pdf_path)
-            except Exception as e:
+            except (OSError, IOError) as e:
                 print(f"임시 파일 삭제 오류: {e}")

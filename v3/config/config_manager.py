@@ -60,7 +60,7 @@ class Config:
             if isinstance(node, (dict, list)):
                 return copy.deepcopy(node)
             return node
-        except Exception as e:
+        except (KeyError, TypeError, AttributeError) as e:
             _logger.warning(f"설정값 조회 실패 ({dotted_key}): {e}")
             return default
 
@@ -105,7 +105,7 @@ class Config:
                 self._data['scan_effects'] = {}
             self._data['scan_effects'].update(effects_data)
             return self._save_config()
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             _logger.warning(f"스캔 효과 저장 실패: {e}")
             return False
 
@@ -116,7 +116,7 @@ class Config:
                 self._data['mixing'] = {}
             self._data['mixing']['workers'] = workers
             return self._save_config()
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             _logger.warning(f"작업자 목록 저장 실패: {e}")
             return False
 
@@ -127,7 +127,7 @@ class Config:
                 self._data['mixing'] = {}
             self._data['mixing']['last_worker'] = worker_name
             return self._save_config()
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             _logger.warning(f"마지막 작업자 저장 실패: {e}")
             return False
 
@@ -143,7 +143,7 @@ class Config:
                 self._data["ui"] = {}
             self._data["ui"]["sidebar_hover_expand"] = bool(enabled)
             return self._save_config()
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             _logger.warning(f"sidebar hover expand save failed: {e}")
             return False
 

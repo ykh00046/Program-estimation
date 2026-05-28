@@ -497,7 +497,7 @@ class RecordViewDialog(QDialog):
             
             os.startfile(output_dir)
             logger.info(f"출력 폴더 열기: {output_dir}")
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.error(f"폴더 열기 오류: {e}")
             QMessageBox.critical(self, "오류", f"폴더를 열 수 없습니다.\n{e}")
 

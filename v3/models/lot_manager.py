@@ -36,7 +36,7 @@ class LotManager:
             # Handle case where the Excel file doesn't exist
             logger.warning(f"LOT 데이터 파일을 찾을 수 없습니다: {self.excel_path}")
             self.df = pd.DataFrame()
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             # Handle other potential errors during file loading
             logger.error(f"LOT 데이터 로드 중 오류 발생 ({self.excel_path}): {e}", exc_info=True)
             self.df = pd.DataFrame()
@@ -100,6 +100,6 @@ class LotManager:
             logger.debug(f"--- 로트 추적 종료: 최종 반환={result} ---")
             return result
 
-        except Exception as e:
+        except (ValueError, KeyError, TypeError) as e:
             logger.error(f"로트 추적 중 오류 발생 (품목코드: {item_code}): {e}", exc_info=True)
             return []

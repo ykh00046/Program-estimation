@@ -126,7 +126,7 @@ class DhrRecordDetailDialog(QDialog):
             if success and os.path.exists(signed_image_path):
                 try:
                     os.remove(signed_image_path)
-                except Exception:
+                except (OSError, IOError):
                     pass
 
             if excel_file:
@@ -137,7 +137,7 @@ class DhrRecordDetailDialog(QDialog):
                     return
             
             QMessageBox.warning(self, "출력 실패", "엑셀/PDF 파일 생성에 실패했습니다.")
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.error(f"DHR 실적서 출력 오류: {e}")
             QMessageBox.critical(self, "오류", f"실적서 출력 중 오류가 발생했습니다.\n{str(e)}")
 

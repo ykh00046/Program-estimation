@@ -198,7 +198,7 @@ class DhrDatabaseManager(SqliteManagerBase):
         try:
             with self.get_connection() as conn:
                 return self._generate_product_lot_with_conn(conn, product_name, work_date)
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(f"DHR LOT 생성 중 오류: {e}. 기본 LOT를 사용합니다.")
             return f"{base_lot}01"
 

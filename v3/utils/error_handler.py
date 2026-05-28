@@ -3,7 +3,7 @@ from typing import Any, Callable
 
 try:
     from PySide6.QtWidgets import QMessageBox  # type: ignore
-except Exception:  # pragma: no cover - optional GUI dependency
+except ImportError:  # pragma: no cover - optional GUI dependency
     QMessageBox = None
 
 from .logger import logger

@@ -69,7 +69,7 @@ class ExcelExporter:
             wb.close()
             logger.info(f"엑셀 파일 생성 완료: {output_file}")
             return output_file
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.error(f"엑셀 출력 오류: {e}", exc_info=True)
             return None
 
@@ -131,12 +131,12 @@ class ExcelExporter:
             try:
                 if workbook:
                     workbook.Close(SaveChanges=False)
-            except Exception:
+            except (OSError, IOError):
                 logger.warning("Excel workbook 닫기 실패")
             try:
                 if excel:
                     excel.Quit()
-            except Exception:
+            except (OSError, IOError):
                 logger.warning("Excel 프로세스 종료 실패")
 
     def _pdf_to_images(self, pdf_path, params: dict):
@@ -233,7 +233,7 @@ class ExcelExporter:
             img.anchor = "G2"
             ws.add_image(img)
             return True
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.error(f"이미지 추가 중 오류: {e}", exc_info=True)
             return False
 
@@ -243,7 +243,7 @@ class ExcelExporter:
             for row_num in range(ws.max_row, data_end_row, -1):
                 if all(ws.cell(row=row_num, column=col).value is None for col in range(1, 8)):
                     ws.delete_rows(row_num, 1)
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.warning(f"행 삭제 중 오류: {e}")
 
     def _apply_cell_merges(self, ws, data_end_row):
@@ -253,7 +253,7 @@ class ExcelExporter:
             ws.merge_cells(f'B6:B{data_end_row}')
             ws['A6'].alignment = Alignment(horizontal='center', vertical='center')
             ws['B6'].alignment = Alignment(horizontal='center', vertical='center')
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.warning(f"셀 병합 중 오류: {e}")
 
     def _apply_borders(self, ws, data_end_row):
@@ -264,5 +264,5 @@ class ExcelExporter:
                 for col in range(1, 8):
                     ws.cell(row=row, column=col).border = thin_border
                     ws.cell(row=row, column=col).alignment = Alignment(horizontal='center', vertical='center')
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.warning(f"경계선 적용 중 오류: {e}")

@@ -3,6 +3,7 @@
 기존 Excel 기반 저장 방식에서 SQLite 데이터베이스를 사용하도록 변경합니다.
 """
 import os
+import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -53,7 +54,7 @@ class DataManager:
                     })
             logger.info(f"Excel에서 레시피 로드 완료: {len(recipes)}종")
             return recipes
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.error(f"레시피 Excel 파일 로드 실패: {e}")
             return {}
 
@@ -90,7 +91,7 @@ class DataManager:
             
             new_seq = max_seq + 1
             return f"{base_lot}{new_seq:02d}"
-        except Exception as e:
+        except (ValueError, OSError) as e:
             logger.error(f"DB 기반 LOT 번호 생성 실패: {e}. 기본값으로 대체합니다.")
             return f"{base_lot}01"
     def _build_record_data(self, product_lot: str, recipe_name: str, worker_name: str,
@@ -153,7 +154,7 @@ class DataManager:
                 logger.info(f"Google Sheets auto-backup success: {msg}")
             else:
                 logger.warning(f"Google Sheets auto-backup failed: {msg}")
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Google Sheets auto-backup error: {e}")
     def validate_record_inputs(self, worker_name: str, recipe_name: str,
                                mixing_amount: float, materials_data: Dict) -> Tuple[bool, str]:
@@ -279,7 +280,7 @@ class DataManager:
                     shutil.move(pdf_file, os.path.join(final_pdf_dir, os.path.basename(pdf_file)))
                 except OSError as move_err:
                     logger.warning(f"PDF 위치 정규화 실패: {move_err}")
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.error(f"실적서 생성 중 오류 발생: {e}", exc_info=True)
     
     def get_mixing_records(self, start_date: Optional[str] = None, end_date: Optional[str] = None,
@@ -298,7 +299,7 @@ class DataManager:
             if not rows:
                 return pd.DataFrame()
             return pd.DataFrame(rows)
-        except Exception as e:
+        except (sqlite3.Error, ValueError) as e:
             logger.error(f"모든 기록 조회 실패: {e}")
             return pd.DataFrame()
 
@@ -316,7 +317,7 @@ class DataManager:
             if success:
                 logger.info(f"배합 기록 삭제 완료: LOT {product_lot}")
             return success
-        except Exception as e:
+        except (sqlite3.Error, ValueError) as e:
             logger.error(f"배합 기록 삭제 오류: {e}", exc_info=True)
             return False
     
@@ -361,7 +362,7 @@ class DataManager:
             
             logger.info(f"배합 기록 수정 완료: LOT {product_lot}")
             return True
-        except Exception as e:
+        except (sqlite3.Error, ValueError) as e:
             logger.error(f"배합 기록 수정 오류: {e}", exc_info=True)
             return False
 
@@ -396,7 +397,7 @@ class DataManager:
             if pdf_file:
                 logger.info(f"기존 기록 재출력 완료: {pdf_file}")
             return pdf_file
-        except Exception as e:
+        except (sqlite3.Error, OSError, ValueError) as e:
             logger.error(f"기존 기록 재출력 오류: {e}", exc_info=True)
             return None
 

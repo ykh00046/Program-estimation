@@ -61,7 +61,7 @@ class GoogleSheetsBackup:
         except TransportError as e:
             logger.error(f"Google Sheets 인증 실패 (네트워크/전송 오류): {e}")
             return False
-        except Exception as e:
+        except (OSError, IOError) as e:
             logger.error(f"Google Sheets 인증 중 알 수 없는 오류 발생: {e}")
             return False
 

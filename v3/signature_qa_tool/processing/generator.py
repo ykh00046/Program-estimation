@@ -70,7 +70,7 @@ class SignatureGenerator:
             # Clean up temp file
             try:
                 os.remove(temp_output)
-            except Exception:
+            except (OSError, IOError):
                 pass
             return composite_image
         else:
