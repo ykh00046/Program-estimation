@@ -4,7 +4,7 @@
 > **Plan**: [../../01-plan/features/ui_architecture_refactor.plan.md](../../01-plan/features/ui_architecture_refactor.plan.md)
 > **Author**: AI Assistant
 > **Created**: 2026-05-29
-> **Status**: 🔄 Design
+> **Status**: ✅ Design (design-validator 반영 완료, §8)
 > **PDCA Cycle**: #19
 
 ---
@@ -135,19 +135,26 @@ self.status_controller = sb.status_controller
 """DHR 패널 입력 검증 순수 함수 (PDCA #19). Qt 비의존, (ok, message) 반환."""
 from typing import List, Tuple
 
+# focus_field: 실패 시 포커스 이동 대상 키("product_name"/"amount"/""), 메시지 문자열
+# 역매핑 대신 키로 명시. 자재 분기는 현행도 포커스 이동이 없으므로 "".
 def validate_manual_input(product_name: str, amount: float,
-                          material_row_count: int) -> Tuple[bool, str]:
+                          material_row_count: int) -> Tuple[bool, str, str]:
+    if not product_name.strip():
+        return False, "제품명을 입력하세요.", "product_name"
+    if amount <= 0:
+        return False, "배합량을 입력하세요.", "amount"
+    if material_row_count == 0:
+        return False, "자재를 최소 1개 이상 입력하세요.", ""
+    return True, "", ""
+
+# bulk은 현행 분기 순서(제품명 검사 → 파싱 → entries 검사)를 보존하기 위해 두 함수로 분리.
+# parse_bulk_entries는 빈 테이블에 []를 반환(예외 아님)하므로 entry_count==0 분기는 도달 가능(죽은 코드 아님).
+def validate_bulk_product(product_name: str) -> Tuple[bool, str]:
     if not product_name.strip():
         return False, "제품명을 입력하세요."
-    if amount <= 0:
-        return False, "배합량을 입력하세요."
-    if material_row_count == 0:
-        return False, "자재를 최소 1개 이상 입력하세요."
     return True, ""
 
-def validate_bulk_input(product_name: str, entry_count: int) -> Tuple[bool, str]:
-    if not product_name.strip():
-        return False, "제품명을 입력하세요."
+def validate_bulk_entries(entry_count: int) -> Tuple[bool, str]:
     if entry_count == 0:
         return False, "생성할 데이터가 없습니다."
     return True, ""
@@ -160,32 +167,38 @@ def validate_recipe_input(recipe_name: str) -> Tuple[bool, str]:
 
 ### 3.2 패널 적용 (뷰는 수집 + 표시만)
 
-**manual_input_interface `_validate`** — 포커스 이동은 뷰 책임이라 유지, 규칙만 순수 함수 위임:
+**manual_input_interface `_validate`** — 규칙은 순수 함수, **포커스 이동은 focus_field 키로 뷰가 인라인 처리**(메시지 문자열 역매핑 금지). 현행 동작(제품명→product_name_edit, 배합량→amount_spin, 자재→포커스 없음) 그대로 보존:
 
 ```python
 def _validate(self) -> bool:
-    ok, msg = validate_manual_input(
+    ok, msg, focus = validate_manual_input(
         self.product_name_edit.text(),
         self.amount_spin.value(),
         self._get_effective_material_row_count(),
     )
-    if not ok:
-        QMessageBox.warning(self, "입력 오류", msg)
-        self._focus_for_message(msg)   # 메시지→포커스 매핑(뷰 보조)
-        return False
-    return True
+    if ok:
+        return True
+    QMessageBox.warning(self, "입력 오류", msg)
+    if focus == "product_name":
+        self.product_name_edit.setFocus()
+    elif focus == "amount":
+        self.amount_spin.setFocus()
+    return False
 ```
 
-**bulk_creation_interface `_bulk_create`** — 제품명/엔트리 검증을 함수로. 단, `_parse_bulk_entries()`는 `ValueError`를 던지므로 파싱은 그대로 두고, 파싱 성공 후 `validate_bulk_input(product_name, len(entries))`로 통합:
+**bulk_creation_interface `_bulk_create`** — **현행 분기 순서를 비트 단위로 보존**(제품명 검사 → 파싱(ValueError 표시) → entries 검사). 제품명 검사를 파싱 뒤로 미루면 "제품명 공백 + 날짜 오류" 동시 입력 시 노출 메시지가 바뀌므로 순서 유지가 필수:
 
 ```python
 product_name = self.product_name_edit.text()
+ok, msg = validate_bulk_product(product_name)        # 파싱 '이전' (현행과 동일 위치)
+if not ok:
+    QMessageBox.warning(self, "입력 오류", msg); return
 try:
     entries = self._parse_bulk_entries()
     materials = self._get_materials_for_bulk()
 except ValueError as e:
     QMessageBox.warning(self, "입력 오류", str(e)); return
-ok, msg = validate_bulk_input(product_name, len(entries))
+ok, msg = validate_bulk_entries(len(entries))         # 파싱 '이후'
 if not ok:
     QMessageBox.warning(self, "입력 오류", msg); return
 ```
@@ -211,27 +224,31 @@ name = self.name_edit.text().strip()
 
 ### 4.1 신규 `tests/unit/test_dhr_validation.py` (Qt 비의존)
 
+순수 함수만 테스트하므로 Qt/DB 불필요.
+
 | 테스트 | 검증 |
 |---|---|
-| `test_manual_empty_product` | 제품명 공백 → (False, "제품명...") |
-| `test_manual_zero_amount` | amount 0 → (False, "배합량...") |
-| `test_manual_no_material` | row 0 → (False, "자재...") |
-| `test_manual_ok` | 정상 → (True, "") |
-| `test_bulk_empty_product / no_entries / ok` | bulk 분기 3종 |
-| `test_recipe_empty / ok` | recipe 분기 2종 |
+| `test_manual_empty_product` | 제품명 공백 → `(False, "제품명...", "product_name")` |
+| `test_manual_zero_amount` | amount 0 → `(False, "배합량...", "amount")` |
+| `test_manual_no_material` | row 0 → `(False, "자재...", "")` (포커스 없음) |
+| `test_manual_ok` | 정상 → `(True, "", "")` |
+| `test_bulk_product_empty / ok` | `validate_bulk_product` 2종 |
+| `test_bulk_entries_zero / ok` | `validate_bulk_entries` 2종 |
+| `test_recipe_empty / ok` | `validate_recipe_input` 2종 |
 
-### 4.2 신규 `tests/unit/test_builders.py` (offscreen Qt)
+### 4.2 빌더 테스트 — 범위 재조정 (design-validator C-1 반영)
 
-`_ensure_ui_test_dependencies()` 패턴(없으면 SkipTest). 가벼운 더블 window(또는 실제 MainWindow 부분 생성)로:
-- `register_sidebar_interfaces`가 `SidebarRefs`의 5개 필드를 None 아닌 값으로 반환
-- `setup_statusbar`가 `StatusbarRefs` 2개 필드 반환
-- 반환 refs와 main_window 할당 속성이 동일 객체(identity) 인지
+`register_sidebar_interfaces`/`setup_statusbar`를 stub window로 단위 테스트하는 것은 비현실적이다. 두 함수는 내부에서 `build_mixing_page`·`build_settings_page`·`build_action_page`를 호출하며 window의 다수 속성/메서드(`recipe_panel`, `work_info_panel`, `material_panel`, `scan_effects_panel`, `signature_panel`, `_save_record`, `_open_records`, `_request_worker_and_refresh`, `is_sidebar_hover_expand_enabled`, `_set_sidebar_hover_expand_enabled`, `_set_status_message`, `dashboard_panel`, `services`, `data_manager`)와 **FluentWindow 인프라(`addSubInterface` → navigationInterface/stackedWidget)** 에 의존하므로 순수 더블로 재현 불가.
 
-> MainWindow 전체 생성은 작업자 입력 다이얼로그를 띄우므로, 빌더 함수 단위 테스트는 **services/dashboard_panel만 갖춘 최소 stub window**로 수행.
+따라서:
+- **단위 테스트(`tests/unit/test_builders.py`)는 `build_mixing_page`로 한정** — 이미 `Tuple[QWidget, MixingPageRefs]`를 반환하므로(현행), refs의 `save_btn`/`status_bar` 필드가 채워지는지 + 위젯 objectName을 검증. offscreen QApplication + 필요한 패널만 주입.
+- **`register_sidebar_interfaces`/`setup_statusbar`의 refs 반환·할당 동일성은 4.3 시각 스모크에서 실제 `MainWindow` 경로로 커버.**
 
-### 4.3 시각 스모크 (refactor-order visual-smoke.md)
+### 4.3 시각 스모크 (refactor-order visual-smoke.md) — refs 회귀의 1차 방어선
 
-offscreen에서 4개 화면(배합/수기/일괄/DHR 관리) 진입 + DHR 설정 3-way sync 1회 토글 → 예외 0.
+offscreen에서 실제 `MainWindow`를 생성하되 **작업자 입력 다이얼로그를 우회**(`config.last_worker` 사전 주입 또는 `request_worker_input`를 monkeypatch)하여:
+- 4개 화면(배합/수기/일괄/DHR 관리) 진입 + DHR 설정 3-way sync 1회 토글 → 예외 0
+- `main_window.manual_interface/bulk_interface/recipe_interface/mixing_status_bar/status_controller`가 None 아님(refs 할당 검증)
 
 ### 4.4 회귀 기준
 
@@ -245,15 +262,17 @@ offscreen에서 4개 화면(배합/수기/일괄/DHR 관리) 진입 + DHR 설정
 | 위험 | 결정 |
 |---|---|
 | refs 전환 시 sync 접근 경로 깨짐 | `_setup_dhr_settings_sync`를 refs 할당 **직후** 호출, Part A 첫 커밋에서 시각 스모크 필수 |
-| `setup_statusbar` 순서 의존 | `_create_central_widget` → `setup_statusbar` 순서 보존(코드 위치 불변) |
-| 빌더 단위 테스트의 MainWindow 부작용(작업자 다이얼로그) | 최소 stub window 사용, 전체 생성 회피 |
+| `setup_statusbar` 순서 의존 | `_init_ui` 내 위치 그대로 유지(central로 이동 금지). `mixing_status_bar`는 `_create_central_widget`에서 할당되어 호출 시점에 존재 |
+| 빌더 단위 테스트가 stub으로 불가(C-1) | 단위 테스트는 `build_mixing_page`로 한정, 전체 빌더는 시각 스모크(실제 MainWindow + 작업자 다이얼로그 우회)로 커버 |
+| bulk 검증 순서 변경(M-2) | `validate_bulk_product`(파싱 전)/`validate_bulk_entries`(파싱 후) 2분리로 현행 순서 보존 |
+| manual 포커스 회귀(M-3) | 순수 함수가 focus_field 키 반환, 뷰가 인라인 매핑(메시지 역매핑 금지) |
 | Part A/B 동시 진행으로 회귀 추적난 | Part A(무동작) 전 커밋 완료·검증 후 Part B 착수 |
 
 ---
 
 ## 6. 단계별 커밋 계획
 
-1. `refactor(ui): return SidebarRefs from register_sidebar_interfaces (PDCA #19 A1)` — 빌더 반환화 + main_window 할당, sync 호출 이동
+1. `refactor(ui): return SidebarRefs from register_sidebar_interfaces (PDCA #19 A1)` — 빌더 반환화 + main_window 할당, sync 호출 이동, **`register_sidebar_interfaces` docstring의 "3-way sync도 초기화" 문구 수정**(이제 main_window가 호출). `build_mixing_page`는 이미 refs 반환(MixingPageRefs)이므로 재작성 대상 아님 — `mixing_page_refs`로 그대로 활용
 2. `refactor(ui): return StatusbarRefs from setup_statusbar (PDCA #19 A2)`
 3. `test: add builders refs unit test (PDCA #19 A3)`
 4. `refactor(ui): extract DHR panel validation to pure functions (PDCA #19 B1)` — dhr_validation.py + 3패널 적용
@@ -265,3 +284,20 @@ offscreen에서 4개 화면(배합/수기/일괄/DHR 관리) 진입 + DHR 설정
 ## 7. 다음 단계
 
 `/pdca do ui_architecture_refactor` — 위 커밋 1번부터 순차 진행, 각 단계 후 데이터/패널 테스트 + 시각 스모크.
+
+---
+
+## 8. design-validator 검증 반영 (2026-05-29)
+
+bkit:design-validator 1차 검증(완전성 78/100) 지적사항을 본 문서에 반영 완료:
+
+| ID | 지적 | 반영 |
+|---|---|---|
+| C-1 | "최소 stub window" 빌더 단위 테스트 비현실적(패널·FluentWindow 다수 의존) | 4.2를 `build_mixing_page` 단위로 한정, 전체 빌더는 4.3 시각 스모크(실제 MainWindow+다이얼로그 우회)로 커버 |
+| M-2 | bulk 검증 통합 시 제품명 검사가 파싱 뒤로 밀려 노출 메시지 변경(무동작변경 위반) | `validate_bulk_product`(파싱 전)/`validate_bulk_entries`(파싱 후) 2분리로 순서 보존. `parse_bulk_entries` 빈입력=[] 확인(죽은 코드 아님) |
+| M-3 | `_focus_for_message` 메시지 역매핑은 자기모순·취약 | 순수 함수가 `focus_field` 키 반환, 뷰 인라인 매핑으로 현행 포커스 동작 보존 |
+| M-1 | `setup_statusbar` 위치 오해 소지 | 위험표에 "`_init_ui` 위치 유지, central 이동 금지" 명시 |
+| m-3 | `register_sidebar_interfaces` docstring "sync 초기화" 문구가 거짓이 됨 | 커밋 1 체크리스트에 docstring 수정 추가 |
+| m-1 | `build_mixing_page` 이미 refs 반환 | 커밋 1 노트에 "재작성 대상 아님" 명시 |
+
+잔여 판단: m-2(`SidebarRefs.mixing_status_bar` 파생 중복)는 현행도 동일 구조라 무동작변경 위해 **의도적 보존**, 후속 정리 후보로만 기록.
