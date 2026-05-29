@@ -499,6 +499,36 @@ class MixingDatabaseManager(SqliteManagerBase):
                 return True
             return False
 
+    @handle_exceptions(user_message="배합 기록 수정 중 오류가 발생했습니다.", default_return=False)
+    def update_mixing_record_with_details(self, record_id: int, worker: str,
+                                          total_amount: float, materials: List[Dict]) -> bool:
+        """기본 기록과 상세 자재들을 단일 트랜잭션으로 수정한다.
+
+        자재별 개별 커밋(N+1)을 제거하여 부분 실패 시 전체 롤백을 보장한다.
+        """
+        with self.get_connection() as conn:
+            conn.execute("""
+                UPDATE mixing_records
+                SET worker = ?, total_amount = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (worker, total_amount, record_id))
+            for material in materials:
+                conn.execute("""
+                    UPDATE mixing_details
+                    SET material_lot = ?, ratio = ?, theory_amount = ?, actual_amount = ?
+                    WHERE mixing_record_id = ? AND material_code = ?
+                """, (
+                    material.get('material_lot', ''),
+                    material.get('ratio', 0),
+                    material.get('theory_amount', 0),
+                    material.get('actual_amount', 0),
+                    record_id,
+                    material['material_code'],
+                ))
+            conn.commit()
+            logger.info(f"배합 기록(상세 포함) 수정 완료: ID {record_id}, 자재 {len(materials)}건")
+            return True
+
     @handle_exceptions(user_message="품목별 배합량 집계 중 오류가 발생했습니다.", default_return=0.0)
     def sum_item_amount_by_date_range(self, start_date: str, end_date: str, material_name: str) -> float:
         """

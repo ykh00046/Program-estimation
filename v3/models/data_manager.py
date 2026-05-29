@@ -340,26 +340,15 @@ class DataManager:
             
             record_id = record['id']
 
-            # 1. 기본 기록 업데이트
-            success = self.db_manager.update_mixing_record(
+            # 기본 기록 + 상세 자재를 단일 트랜잭션으로 수정 (부분 실패 시 전체 롤백)
+            success = self.db_manager.update_mixing_record_with_details(
                 record_id=record_id,
                 worker=worker,
-                total_amount=total_amount
+                total_amount=total_amount,
+                materials=materials,
             )
-
             if not success:
                 return False
-
-            # 2. 상세 정보 업데이트
-            for material in materials:
-                self.db_manager.update_mixing_detail(
-                    record_id=record_id,
-                    material_code=material['material_code'],
-                    material_lot=material.get('material_lot', ''),
-                    ratio=material.get('ratio', 0),
-                    theory_amount=material.get('theory_amount', 0),
-                    actual_amount=material.get('actual_amount', 0)
-                )
 
             logger.info(f"배합 기록 수정 완료: LOT {product_lot}")
             return True
