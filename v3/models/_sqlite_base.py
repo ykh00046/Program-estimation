@@ -14,7 +14,7 @@
 import os
 import sqlite3
 from contextlib import contextmanager
-from typing import Iterator, Optional
+from typing import Iterator, List, Optional
 
 from utils.logger import logger
 from utils.error_handler import DatabaseError
@@ -56,3 +56,19 @@ class SqliteManagerBase:
         finally:
             if conn is not None:
                 conn.close()
+
+    @staticmethod
+    def _append_date_range(query: str, params: List, start_date: Optional[str],
+                           end_date: Optional[str], column: str = "work_date") -> str:
+        """`start_date`/`end_date`가 있을 때만 날짜 범위 WHERE 절을 덧붙인다.
+
+        `column`은 내부 호출에서만 지정하는 신뢰된 컬럼명이며, 값은 항상
+        파라미터 바인딩(`?`)으로만 전달되어 SQL 인젝션에 안전하다.
+        """
+        if start_date:
+            query += f" AND {column} >= ?"
+            params.append(start_date)
+        if end_date:
+            query += f" AND {column} <= ?"
+            params.append(end_date)
+        return query

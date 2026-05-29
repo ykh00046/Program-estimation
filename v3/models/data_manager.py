@@ -14,6 +14,7 @@ from config.settings import LOT_FILE, RECIPE_FILE
 from models.backup.google_sheets_backup import GoogleSheetsBackup
 from models.database import MixingDatabaseManager
 from models.lot_manager import LotManager
+from models.lot_utils import next_lot
 from utils.logger import logger
 
 
@@ -77,20 +78,8 @@ class DataManager:
                 limit=1000 # 하루에 1000개 이상은 생성하지 않는다고 가정
             )
             
-            # LOT 번호에서 시퀀스 부분만 추출하여 가장 큰 번호를 찾음
-            max_seq = 0
-            for record in today_records:
-                lot = record['product_lot']
-                if lot.startswith(base_lot):
-                    try:
-                        seq = int(lot[len(base_lot):])
-                        if seq > max_seq:
-                            max_seq = seq
-                    except (ValueError, IndexError):
-                        continue
-            
-            new_seq = max_seq + 1
-            return f"{base_lot}{new_seq:02d}"
+            # LOT 번호에서 시퀀스 부분만 추출하여 다음 번호를 생성
+            return next_lot(base_lot, (record['product_lot'] for record in today_records))
         except (ValueError, OSError) as e:
             logger.error(f"DB 기반 LOT 번호 생성 실패: {e}. 기본값으로 대체합니다.")
             return f"{base_lot}01"

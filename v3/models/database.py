@@ -14,6 +14,7 @@ from config.settings import DB_FILE, LEGACY_DB_PATH, USER_DATA_DIR
 from utils.logger import logger
 from utils.error_handler import handle_exceptions
 from models._sqlite_base import SqliteManagerBase
+from models.lot_utils import next_lot
 
 
 class MixingDatabaseManager(SqliteManagerBase):
@@ -159,18 +160,7 @@ class MixingDatabaseManager(SqliteManagerBase):
             "SELECT product_lot FROM mixing_records WHERE work_date = ? AND recipe_name = ?",
             (work_date, recipe_name),
         )
-        max_seq = 0
-        for row in cursor.fetchall():
-            lot = row["product_lot"]
-            if not lot.startswith(base_lot):
-                continue
-            try:
-                seq = int(lot[len(base_lot):])
-            except (ValueError, IndexError):
-                continue
-            if seq > max_seq:
-                max_seq = seq
-        return f"{base_lot}{max_seq + 1:02d}"
+        return next_lot(base_lot, (row["product_lot"] for row in cursor.fetchall()))
 
     def _resolve_unique_product_lot(self, conn, record_data: Dict) -> str:
         """요청된 LOT이 비었거나 이미 존재하면 동일 트랜잭션 안에서 유일 LOT을 재생성한다."""
@@ -259,15 +249,9 @@ class MixingDatabaseManager(SqliteManagerBase):
         with self.get_connection() as conn:
             query = "SELECT * FROM mixing_records WHERE 1=1"
             params = []
-            
-            if start_date:
-                query += " AND work_date >= ?"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND work_date <= ?"
-                params.append(end_date)
-            
+
+            query = self._append_date_range(query, params, start_date, end_date)
+
             if worker:
                 query += " AND worker = ?"
                 params.append(worker)
@@ -631,12 +615,7 @@ class MixingDatabaseManager(SqliteManagerBase):
             "WHERE 1=1"
         )
         params: List = []
-        if start_date:
-            query += " AND r.work_date >= ?"
-            params.append(start_date)
-        if end_date:
-            query += " AND r.work_date <= ?"
-            params.append(end_date)
+        query = self._append_date_range(query, params, start_date, end_date, "r.work_date")
         query += " GROUP BY d.material_code, d.material_name ORDER BY total_actual DESC LIMIT ?"
         params.append(limit)
         with self.get_connection() as conn:
@@ -661,12 +640,7 @@ class MixingDatabaseManager(SqliteManagerBase):
             "WHERE 1=1"
         )
         params: List = []
-        if start_date:
-            query += " AND work_date >= ?"
-            params.append(start_date)
-        if end_date:
-            query += " AND work_date <= ?"
-            params.append(end_date)
+        query = self._append_date_range(query, params, start_date, end_date)
         query += " GROUP BY worker ORDER BY record_count DESC"
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)
@@ -690,12 +664,7 @@ class MixingDatabaseManager(SqliteManagerBase):
             "WHERE 1=1"
         )
         params: List = []
-        if start_date:
-            query += " AND work_date >= ?"
-            params.append(start_date)
-        if end_date:
-            query += " AND work_date <= ?"
-            params.append(end_date)
+        query = self._append_date_range(query, params, start_date, end_date)
         query += " GROUP BY recipe_name ORDER BY run_count DESC LIMIT ?"
         params.append(limit)
         with self.get_connection() as conn:

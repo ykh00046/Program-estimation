@@ -6,6 +6,7 @@ import os
 import shutil
 import warnings
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Border, Side, Alignment
@@ -22,7 +23,7 @@ import numpy as np
 class ExcelExporter:
     """엑셀 및 PDF 출력 클래스"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """초기화"""
         base_path = config.get("paths.output", "실적서")
         self.excel_folder = os.path.join(base_path, "excel")
@@ -35,7 +36,9 @@ class ExcelExporter:
         self.template_file = os.path.join("resources", "template.xlsx")
         logger.debug(f"ExcelExporter 초기화: excel={self.excel_folder}, pdf={self.pdf_folder}")
 
-    def export_to_excel(self, data, include_image=False, image_path=None, include_work_time=True):
+    def export_to_excel(self, data: Dict, include_image: bool = False,
+                        image_path: Optional[str] = None,
+                        include_work_time: bool = True) -> Optional[str]:
         """배합 기록을 엑셀 파일로 출력"""
         try:
             if not os.path.exists(self.template_file):
@@ -73,7 +76,7 @@ class ExcelExporter:
             logger.error(f"엑셀 출력 오류: {e}", exc_info=True)
             return None
 
-    def export_to_pdf(self, excel_file, effects_params: dict):
+    def export_to_pdf(self, excel_file: Optional[str], effects_params: Optional[Dict]) -> Optional[str]:
         """
         엑셀 파일을 스캔 효과가 적용된 PDF로 변환합니다.
         (Excel -> Temp PDF -> Image -> Effects -> Final PDF)
@@ -113,7 +116,7 @@ class ExcelExporter:
             # 5. 임시 파일 정리
             self._cleanup([temp_pdf_path])
 
-    def _excel_to_temp_pdf(self, excel_path, pdf_path):
+    def _excel_to_temp_pdf(self, excel_path: str, pdf_path: str) -> None:
         """엑셀 파일을 PDF로 변환 (win32com 사용)"""
         excel = None
         workbook = None
@@ -139,7 +142,7 @@ class ExcelExporter:
             except (OSError, IOError):
                 logger.warning("Excel 프로세스 종료 실패")
 
-    def _pdf_to_images(self, pdf_path, params: dict):
+    def _pdf_to_images(self, pdf_path: str, params: Dict) -> List["Image.Image"]:
         """PDF를 Pillow 이미지 목록으로 변환 (PyMuPDF 사용)"""
         images = []
         dpi = params.get("dpi", 250)
@@ -151,7 +154,7 @@ class ExcelExporter:
         logger.debug(f"PDF를 이미지로 변환 완료: {len(images)} 페이지, DPI: {dpi}")
         return images
 
-    def _apply_scan_effects(self, image, params):
+    def _apply_scan_effects(self, image: "Image.Image", params: Dict) -> "Image.Image":
         """이미지에 스캔 효과 적용"""
         blur = params.get("blur_radius", 0.3)
         noise = params.get("noise_range", 25)
@@ -173,7 +176,7 @@ class ExcelExporter:
         
         return proc_img
 
-    def _images_to_final_pdf(self, image_list, output_path):
+    def _images_to_final_pdf(self, image_list: List["Image.Image"], output_path: str) -> None:
         """이미지 목록을 최종 PDF로 저장"""
         if not image_list:
             raise ValueError("PDF로 저장할 이미지가 없습니다.")
@@ -182,7 +185,7 @@ class ExcelExporter:
             output_path, "PDF", resolution=100.0, save_all=True, append_images=image_list[1:]
         )
 
-    def _cleanup(self, files):
+    def _cleanup(self, files: List[Optional[str]]) -> None:
         """임시 파일 삭제"""
         for f in files:
             if f and os.path.exists(f):
@@ -192,7 +195,7 @@ class ExcelExporter:
                 except OSError as e:
                     logger.warning(f"임시 파일 삭제 실패: {f}, 오류: {e}")
 
-    def _fill_excel_data(self, ws, data, include_work_time=True):
+    def _fill_excel_data(self, ws: Any, data: Dict, include_work_time: bool = True) -> None:
         """엑셀 시트에 데이터 채우기"""
         if 'date' in self.cell_mapping: ws[self.cell_mapping['date']] = f"작업일: {data.get('work_date', '')}"
         if 'scale' in self.cell_mapping: ws[self.cell_mapping['scale']] = f"저울: {data.get('scale', '')}"
@@ -215,13 +218,13 @@ class ExcelExporter:
             if 'theory_amount_col' in self.cell_mapping: ws[f"{self.cell_mapping['theory_amount_col']}{row}"] = material.get('theory_amount', 0)
             if 'actual_amount_col' in self.cell_mapping: ws[f"{self.cell_mapping['actual_amount_col']}{row}"] = material.get('actual_amount', 0)
 
-    def _format_worksheet(self, ws, data_end_row):
+    def _format_worksheet(self, ws: Any, data_end_row: int) -> None:
         """워크시트 서식 정리"""
         self._delete_empty_rows(ws, data_end_row)
         self._apply_cell_merges(ws, data_end_row)
         self._apply_borders(ws, data_end_row)
 
-    def _add_image_to_worksheet(self, ws, image_path):
+    def _add_image_to_worksheet(self, ws: Any, image_path: str) -> bool:
         """워크시트 G2 셀에 이미지 추가"""
         try:
             if not os.path.exists(image_path):
@@ -237,7 +240,7 @@ class ExcelExporter:
             logger.error(f"이미지 추가 중 오류: {e}", exc_info=True)
             return False
 
-    def _delete_empty_rows(self, ws, data_end_row):
+    def _delete_empty_rows(self, ws: Any, data_end_row: int) -> None:
         """불필요한 빈 행 삭제"""
         try:
             for row_num in range(ws.max_row, data_end_row, -1):
@@ -246,7 +249,7 @@ class ExcelExporter:
         except (OSError, IOError) as e:
             logger.warning(f"행 삭제 중 오류: {e}")
 
-    def _apply_cell_merges(self, ws, data_end_row):
+    def _apply_cell_merges(self, ws: Any, data_end_row: int) -> None:
         """셀 병합 적용"""
         try:
             ws.merge_cells(f'A6:A{data_end_row}')
@@ -256,7 +259,7 @@ class ExcelExporter:
         except (OSError, ValueError, RuntimeError) as e:
             logger.warning(f"셀 병합 중 오류: {e}")
 
-    def _apply_borders(self, ws, data_end_row):
+    def _apply_borders(self, ws: Any, data_end_row: int) -> None:
         """테이블 경계선 적용"""
         try:
             thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))

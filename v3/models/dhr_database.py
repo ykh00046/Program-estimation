@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 
 from config.settings import USER_DATA_DIR
 from models._sqlite_base import SqliteManagerBase
+from models.lot_utils import next_lot
 from utils.logger import logger
 from utils.error_handler import handle_exceptions
 
@@ -158,18 +159,7 @@ class DhrDatabaseManager(SqliteManagerBase):
             "SELECT product_lot FROM dhr_records WHERE work_date = ? AND product_name = ?",
             (work_date, product_name),
         )
-        max_seq = 0
-        for row in cursor.fetchall():
-            lot = row["product_lot"]
-            if not lot.startswith(base_lot):
-                continue
-            try:
-                seq = int(lot[len(base_lot):])
-            except (ValueError, IndexError):
-                continue
-            if seq > max_seq:
-                max_seq = seq
-        return f"{base_lot}{max_seq + 1:02d}"
+        return next_lot(base_lot, (row["product_lot"] for row in cursor.fetchall()))
 
     def _resolve_unique_product_lot(self, conn, record_data: Dict) -> str:
         requested_lot = str(record_data.get("product_lot", "")).strip()
@@ -266,15 +256,9 @@ class DhrDatabaseManager(SqliteManagerBase):
         with self.get_connection() as conn:
             query = "SELECT * FROM dhr_records WHERE 1=1"
             params = []
-            
-            if start_date:
-                query += " AND work_date >= ?"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND work_date <= ?"
-                params.append(end_date)
-            
+
+            query = self._append_date_range(query, params, start_date, end_date)
+
             query += " ORDER BY created_at DESC LIMIT ?"
             params.append(limit)
             
