@@ -9,8 +9,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDate, QTime
 from PySide6.QtGui import QColor
-from models.lot_manager import LotManager
-from config.settings import LOT_FILE
 
 from ui.components import StyledButton, create_group_box, center_window
 from ui.styles import UIStyles, UITheme
@@ -19,7 +17,6 @@ from ui.panels.signature_panel import SignaturePanel
 from ui.widgets.pasteable_table import PasteableTableWidget
 from config.config_manager import config
 from utils.logger import logger
-from models.dhr_database import DhrDatabaseManager
 from typing import Optional
 from qfluentwidgets import (
     CardWidget, LineEdit, DoubleSpinBox, DateEdit, TimeEdit, CheckBox
@@ -35,9 +32,11 @@ class ManualInputInterface(QScrollArea):
         self.setObjectName("ManualInputInterface")
         self.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
         
-        # 데이터 관리자
-        self.dhr_db = dhr_db or DhrDatabaseManager()
-        self.lot_manager = lot_manager or LotManager(LOT_FILE)
+        # 데이터 관리자 (의존성 주입 필수)
+        if dhr_db is None or lot_manager is None:
+            raise ValueError("ManualInputInterface requires dhr_db and lot_manager to be injected.")
+        self.dhr_db = dhr_db
+        self.lot_manager = lot_manager
         
         self._init_ui()
         self._connect_signals()

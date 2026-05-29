@@ -7,8 +7,6 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QHeaderView, QMessageBox, QTabWidget, QScrollArea, QDialog
 )
 
-from models.lot_manager import LotManager
-from config.settings import LOT_FILE
 from ui.components import StyledButton, create_group_box, center_window
 from ui.styles import UIStyles, UITheme
 from ui.panels.scan_effects_panel import ScanEffectsPanel
@@ -17,7 +15,6 @@ from ui.widgets.pasteable_table import PasteableTableWidget, PasteableSimpleTabl
 from config.config_manager import config
 from utils.logger import logger
 from utils.bulk_helpers import parse_date_cell, parse_bulk_entries, get_materials_from_table
-from models.dhr_database import DhrDatabaseManager
 from models.dhr_bulk_generator import DhrBulkGenerator
 from qfluentwidgets import CardWidget, LineEdit, CheckBox
 
@@ -31,8 +28,11 @@ class BulkCreationInterface(QScrollArea):
         self.setObjectName("BulkCreationInterface")
         self.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
         
-        self.dhr_db = dhr_db or DhrDatabaseManager()
-        self.lot_manager = lot_manager or LotManager(LOT_FILE)
+        # 데이터 관리자 (의존성 주입 필수)
+        if dhr_db is None or lot_manager is None:
+            raise ValueError("BulkCreationInterface requires dhr_db and lot_manager to be injected.")
+        self.dhr_db = dhr_db
+        self.lot_manager = lot_manager
         
         self._init_ui()
 

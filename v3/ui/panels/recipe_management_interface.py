@@ -11,18 +11,20 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 
-from models.dhr_database import DhrDatabaseManager
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme
 from ui.components import StyledButton
 
 class RecipeManagementInterface(QWidget):
     """DHR 레시피 관리 패널"""
-    
+
     def __init__(self, parent=None, dhr_db=None):
         super().__init__(parent)
         self.setObjectName("RecipeManagementInterface")
-        self.db = dhr_db or DhrDatabaseManager()
+        # 데이터 관리자 (의존성 주입 필수)
+        if dhr_db is None:
+            raise ValueError("RecipeManagementInterface requires dhr_db to be injected.")
+        self.db = dhr_db
         self.current_recipe_id = None
         
         self._init_ui()
