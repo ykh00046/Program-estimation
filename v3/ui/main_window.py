@@ -116,7 +116,9 @@ class MainWindow(FluentWindow):
         
         self._create_central_widget()
         self._init_sidebar_hover_behavior()
-        setup_statusbar(self)
+        sb = setup_statusbar(self)
+        self.google_sheets_status_label = sb.google_sheets_status_label
+        self.status_controller = sb.status_controller
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -135,7 +137,13 @@ class MainWindow(FluentWindow):
     def _create_central_widget(self):
         """중앙 위젯 생성"""
         self._create_panels()
-        register_sidebar_interfaces(self)
+        refs = register_sidebar_interfaces(self)
+        self.mixing_page_refs = refs.mixing_page_refs
+        self.mixing_status_bar = refs.mixing_status_bar
+        self.manual_interface = refs.manual_interface
+        self.bulk_interface = refs.bulk_interface
+        self.recipe_interface = refs.recipe_interface
+        self._setup_dhr_settings_sync()
         self._connect_panel_signals()
 
     def _create_panels(self):

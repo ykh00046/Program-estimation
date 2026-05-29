@@ -24,6 +24,23 @@ class MixingPageRefs:
     status_bar: StatusBar
 
 
+@dataclass
+class SidebarRefs:
+    """register_sidebar_interfaces가 생성해 main_window가 소유할 참조 묶음."""
+    mixing_page_refs: object
+    mixing_status_bar: object
+    manual_interface: object
+    bulk_interface: object
+    recipe_interface: object
+
+
+@dataclass
+class StatusbarRefs:
+    """setup_statusbar가 생성해 main_window가 소유할 참조 묶음."""
+    google_sheets_status_label: object
+    status_controller: object
+
+
 def build_action_page(title: str, description: str, button_text: str, on_click, object_name: str) -> QWidget:
     page = QWidget()
     page.setObjectName(object_name)
@@ -177,46 +194,43 @@ def create_panel_card(title: str, widget: QWidget) -> QFrame:
 # setup_bottom_buttons 제거: 저장 버튼은 상단 카드 우측에 배치
 
 
-def register_sidebar_interfaces(window) -> None:
-    """MainWindow의 사이드바 서브 인터페이스 8종을 등록합니다.
+def register_sidebar_interfaces(window) -> SidebarRefs:
+    """MainWindow의 사이드바 서브 인터페이스 8종을 등록하고 참조 묶음을 반환합니다.
 
-    호출 전 `window._create_panels()`가 완료되어 있어야 하며,
-    이 함수는 DHR 3-way sync도 함께 초기화합니다.
+    호출 전 `window._create_panels()`가 완료되어 있어야 한다.
+    반환된 `SidebarRefs`를 호출부(main_window)가 자기 속성에 할당하며,
+    DHR 3-way sync 초기화는 호출부 책임이다(이 함수는 수행하지 않음).
     """
     from ui.panels.manual_input_interface import ManualInputInterface
     from ui.panels.recipe_management_interface import RecipeManagementInterface
     from ui.panels.bulk_creation_interface import BulkCreationInterface
 
     # 1. 배합 페이지 (메인 작업 화면)
-    mixing, window.mixing_page_refs = build_mixing_page(window)
-    window.mixing_status_bar = window.mixing_page_refs.status_bar
+    mixing, mixing_page_refs = build_mixing_page(window)
     window.addSubInterface(mixing, FIF.MIX_VOLUMES, "배합")
 
     # 2. 수기 입력
-    window.manual_interface = ManualInputInterface(
+    manual_interface = ManualInputInterface(
         window,
         dhr_db=window.services.dhr_db,
         lot_manager=window.services.lot_manager,
     )
-    window.addSubInterface(window.manual_interface, FIF.EDIT, "수기 입력")
+    window.addSubInterface(manual_interface, FIF.EDIT, "수기 입력")
 
     # 3. 일괄 생성
-    window.bulk_interface = BulkCreationInterface(
+    bulk_interface = BulkCreationInterface(
         window,
         dhr_db=window.services.dhr_db,
         lot_manager=window.services.lot_manager,
     )
-    window.addSubInterface(window.bulk_interface, FIF.PASTE, "일괄 생성")
+    window.addSubInterface(bulk_interface, FIF.PASTE, "일괄 생성")
 
     # 4. DHR 관리
-    window.recipe_interface = RecipeManagementInterface(
+    recipe_interface = RecipeManagementInterface(
         window,
         dhr_db=window.services.dhr_db,
     )
-    window.addSubInterface(window.recipe_interface, FIF.LIBRARY, "DHR 관리")
-
-    # 4-1. DHR 설정 3-way sync (Manual/Bulk 생성 직후)
-    window._setup_dhr_settings_sync()
+    window.addSubInterface(recipe_interface, FIF.LIBRARY, "DHR 관리")
 
     # 4-2. 대시보드 (PDCA #17)
     window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")
@@ -244,18 +258,34 @@ def register_sidebar_interfaces(window) -> None:
     )
     window.addSubInterface(worker_page, FIF.PEOPLE, "작업자 변경")
 
+    return SidebarRefs(
+        mixing_page_refs=mixing_page_refs,
+        mixing_status_bar=mixing_page_refs.status_bar,
+        manual_interface=manual_interface,
+        bulk_interface=bulk_interface,
+        recipe_interface=recipe_interface,
+    )
 
-def setup_statusbar(window) -> None:
-    """상태바 + Google Sheets 백업 라벨 + StatusController를 초기화합니다."""
+
+def setup_statusbar(window) -> StatusbarRefs:
+    """상태바 + Google Sheets 백업 라벨 + StatusController를 초기화하고 참조를 반환합니다.
+
+    `window.mixing_status_bar`(register_sidebar_interfaces 반환분을 main_window가 할당)와
+    `window.data_manager`에 의존하므로, 호출 전 그 두 속성이 설정되어 있어야 한다.
+    """
     tol = config.tolerance
     scale = config.default_scale
     window._set_status_message(f"기본 스케일: {scale} | 허용오차: ±{tol}")
 
-    window.google_sheets_status_label = QLabel("")
-    window.mixing_status_bar.addPermanentWidget(window.google_sheets_status_label)
-    window.google_sheets_status_label.setStyleSheet("padding: 0 5px;")
-    window.status_controller = StatusController(
+    google_sheets_status_label = QLabel("")
+    window.mixing_status_bar.addPermanentWidget(google_sheets_status_label)
+    google_sheets_status_label.setStyleSheet("padding: 0 5px;")
+    status_controller = StatusController(
         status_bar=window.mixing_status_bar,
-        google_sheets_label=window.google_sheets_status_label,
+        google_sheets_label=google_sheets_status_label,
         google_sheets_config=window.data_manager.google_sheets_config,
+    )
+    return StatusbarRefs(
+        google_sheets_status_label=google_sheets_status_label,
+        status_controller=status_controller,
     )
