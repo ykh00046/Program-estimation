@@ -197,8 +197,9 @@ class DataManager:
             )
             details_data = self._build_details_data(materials_data)
 
-            # 2. Persist
+            # 2. Persist (DB가 동일 트랜잭션에서 product_lot 유일성을 최종 보장)
             self.db_manager.save_mixing_record(record_data, details_data)
+            product_lot = record_data['product_lot']
             self._backup_to_google_sheets(record_data, details_data)
             logger.info(f"배합 저장: LOT {product_lot}")
 
@@ -338,17 +339,17 @@ class DataManager:
                 return False
             
             record_id = record['id']
-            
+
             # 1. 기본 기록 업데이트
             success = self.db_manager.update_mixing_record(
                 record_id=record_id,
                 worker=worker,
                 total_amount=total_amount
             )
-            
+
             if not success:
                 return False
-            
+
             # 2. 상세 정보 업데이트
             for material in materials:
                 self.db_manager.update_mixing_detail(
@@ -359,7 +360,7 @@ class DataManager:
                     theory_amount=material.get('theory_amount', 0),
                     actual_amount=material.get('actual_amount', 0)
                 )
-            
+
             logger.info(f"배합 기록 수정 완료: LOT {product_lot}")
             return True
         except (sqlite3.Error, ValueError) as e:

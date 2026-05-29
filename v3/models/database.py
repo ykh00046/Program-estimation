@@ -6,6 +6,7 @@ DHR(Device History Record) 데이터는 `models.dhr_database.DhrDatabaseManager`
 공통 인프라(`get_connection`, `_ensure_database_exists`)는 `models._sqlite_base.SqliteManagerBase`에 위치한다.
 """
 import os
+import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -100,9 +101,34 @@ class MixingDatabaseManager(SqliteManagerBase):
             conn.execute("CREATE INDEX IF NOT EXISTS idx_mixing_records_date ON mixing_records(work_date)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_mixing_records_lot ON mixing_records(product_lot)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_name ON recipes(recipe_name)")
-            
+            self._try_create_unique_lot_index(conn)
+
             conn.commit()
             logger.debug("데이터베이스 테이블 생성/확인 완료")
+
+    def _try_create_unique_lot_index(self, conn) -> None:
+        """기존 데이터에 중복이 없을 때만 product_lot UNIQUE 인덱스를 생성한다."""
+        try:
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_mixing_records_product_lot ON mixing_records(product_lot)"
+            )
+        except sqlite3.IntegrityError:
+            cursor = conn.execute(
+                """
+                SELECT product_lot, COUNT(*) AS cnt
+                FROM mixing_records
+                GROUP BY product_lot
+                HAVING COUNT(*) > 1
+                LIMIT 1
+                """
+            )
+            dup = cursor.fetchone()
+            if dup:
+                logger.warning(
+                    f"mixing product_lot duplicates found; unique index skipped (sample={dup['product_lot']}, count={dup['cnt']})"
+                )
+            else:
+                logger.warning("mixing product_lot unique index creation skipped due to duplicates")
     
     @handle_exceptions(user_message="배합 기록 저장 중 오류가 발생했습니다.")
     def save_mixing_record(self, record_data: Dict, details: List[Dict]) -> int:
@@ -117,11 +143,52 @@ class MixingDatabaseManager(SqliteManagerBase):
             저장된 레코드의 ID
         """
         with self.get_connection() as conn:
+            record_data["product_lot"] = self._resolve_unique_product_lot(conn, record_data)
             record_id = self._insert_mixing_record_row(conn, record_data)
             self._insert_mixing_detail_rows(conn, record_id, details)
             conn.commit()
             self._log_record_saved(record_data, record_id)
         return record_id
+
+    def _generate_product_lot_with_conn(self, conn, recipe_name: str, work_date: str) -> str:
+        """동일 connection 안에서 다음 시퀀스의 제품 LOT을 생성한다."""
+        target_date = datetime.strptime(work_date, "%Y-%m-%d")
+        date_str = target_date.strftime("%y%m%d")
+        base_lot = f"{recipe_name}{date_str}"
+        cursor = conn.execute(
+            "SELECT product_lot FROM mixing_records WHERE work_date = ? AND recipe_name = ?",
+            (work_date, recipe_name),
+        )
+        max_seq = 0
+        for row in cursor.fetchall():
+            lot = row["product_lot"]
+            if not lot.startswith(base_lot):
+                continue
+            try:
+                seq = int(lot[len(base_lot):])
+            except (ValueError, IndexError):
+                continue
+            if seq > max_seq:
+                max_seq = seq
+        return f"{base_lot}{max_seq + 1:02d}"
+
+    def _resolve_unique_product_lot(self, conn, record_data: Dict) -> str:
+        """요청된 LOT이 비었거나 이미 존재하면 동일 트랜잭션 안에서 유일 LOT을 재생성한다."""
+        requested_lot = str(record_data.get("product_lot", "")).strip()
+        if requested_lot:
+            cursor = conn.execute(
+                "SELECT 1 FROM mixing_records WHERE product_lot = ? LIMIT 1",
+                (requested_lot,),
+            )
+            if cursor.fetchone() is None:
+                return requested_lot
+            logger.warning(f"Duplicate mixing product_lot detected; regenerating ({requested_lot})")
+
+        recipe_name = str(record_data.get("recipe_name", "")).strip()
+        work_date = str(record_data.get("work_date", "")).strip()
+        if not recipe_name or not work_date:
+            raise ValueError("recipe_name and work_date are required to generate a unique product LOT")
+        return self._generate_product_lot_with_conn(conn, recipe_name, work_date)
 
     def _insert_mixing_record_row(self, conn, record_data: Dict) -> int:
         """mixing_records 행 1건을 삽입하고 lastrowid를 반환한다."""
