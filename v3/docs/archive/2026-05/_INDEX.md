@@ -70,6 +70,15 @@
 | [record_view_dialog_decomposition.analysis.md](./record_view_dialog_decomposition/record_view_dialog_decomposition.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **100%**) |
 | [record_view_dialog_decomposition.report.md](./record_view_dialog_decomposition/record_view_dialog_decomposition.report.md) | 04-report/features/ | Report |
 
+## PDCA #24 (RecordDetailDialog Fix)
+
+| 문서 | 원래 위치 | 단계 |
+| --- | --- | --- |
+| [record_detail_dialog_fix.plan.md](./record_detail_dialog_fix/record_detail_dialog_fix.plan.md) | 01-plan/features/ | Plan |
+| [record_detail_dialog_fix.design.md](./record_detail_dialog_fix/record_detail_dialog_fix.design.md) | 02-design/features/ | Design |
+| [record_detail_dialog_fix.analysis.md](./record_detail_dialog_fix/record_detail_dialog_fix.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **100%**) |
+| [record_detail_dialog_fix.report.md](./record_detail_dialog_fix/record_detail_dialog_fix.report.md) | 04-report/features/ | Report |
+
 ## 핵심 성과
 
 - **`_init_ui` 분해**: 패널/다이얼로그 5종, 합계 851 → 120 LOC (−86%)
@@ -82,4 +91,5 @@
 - **로그 로테이션 동시성 (#21)**: `SafeTimedRotatingFileHandler`(rename 실패 silent tolerate) + `MIXING_LOG_DIR` 테스트 로그 격리. stderr 로테이션 노이즈 0, 123 passed (4.75s, Match 100%)
 - **ExcelExporter 책임 분해 (#22)**: 단일클래스 4책임 → `ExcelWriter`+`PdfScanRenderer`+`ExcelExporter`(facade). 공개 API 비트 보존(모킹 무영향), 128 passed (Match 98%)
 - **record_view_dialog 책임 분해 (#23)**: 일괄 출력/삭제 tally 루프 → `RecordOpsController`(Qt 비의존). 136 passed (Match 100%)
-- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22/#23)
+- **RecordDetailDialog 복구 (#24)**: 복사-붙여넣기 잔재로 생성 시 크래시(load_records AttributeError)하던 상세조회를 본래 위젯으로 복구. -93 LOC, 143 passed (Match 100%)
+- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22/#23/#24)
