@@ -1,9 +1,28 @@
 import logging
 import logging.handlers
 import os
+import time
 from typing import Any
 
 from config.settings import LOG_FOLDER
+
+
+class SafeTimedRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
+    """롤오버 rename 실패(멀티프로세스 파일 잠금, Windows WinError 32 등)에 견디는 핸들러.
+
+    stdlib는 `rotate()`(os.rename) 실패 시 stream을 닫은 채 예외를 던지고 traceback을
+    stderr로 덤프하며, rolloverAt을 갱신하지 못해 매 emit마다 재시도한다.
+    본 핸들러는 실패를 삼키고 현재 파일 스트림을 재오픈해 로깅을 지속하며,
+    rolloverAt을 다음 주기로 advance해 재시도 스팸을 막는다(다음 주기 자가 재시도).
+    """
+
+    def doRollover(self) -> None:
+        try:
+            super().doRollover()
+        except OSError:
+            if self.stream is None:
+                self.stream = self._open()
+            self.rolloverAt = self.computeRollover(int(time.time()))
 
 
 class Logger:
@@ -44,7 +63,7 @@ class Logger:
 
     def _add_file_handlers(self, log_dir: str, formatter: logging.Formatter) -> None:
         try:
-            file_handler = logging.handlers.TimedRotatingFileHandler(
+            file_handler = SafeTimedRotatingFileHandler(
                 filename=os.path.join(log_dir, "mixing_program.log"),
                 when="D",
                 interval=1,
