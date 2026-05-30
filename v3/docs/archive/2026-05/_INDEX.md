@@ -52,6 +52,15 @@
 | [log_rotation_concurrency.analysis.md](./log_rotation_concurrency/log_rotation_concurrency.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **100%**) |
 | [log_rotation_concurrency.report.md](./log_rotation_concurrency/log_rotation_concurrency.report.md) | 04-report/features/ | Report |
 
+## PDCA #22 (ExcelExporter Decomposition)
+
+| 문서 | 원래 위치 | 단계 |
+| --- | --- | --- |
+| [excel_exporter_decomposition.plan.md](./excel_exporter_decomposition/excel_exporter_decomposition.plan.md) | 01-plan/features/ | Plan |
+| [excel_exporter_decomposition.design.md](./excel_exporter_decomposition/excel_exporter_decomposition.design.md) | 02-design/features/ | Design |
+| [excel_exporter_decomposition.analysis.md](./excel_exporter_decomposition/excel_exporter_decomposition.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **98%**) |
+| [excel_exporter_decomposition.report.md](./excel_exporter_decomposition/excel_exporter_decomposition.report.md) | 04-report/features/ | Report |
+
 ## 핵심 성과
 
 - **`_init_ui` 분해**: 패널/다이얼로그 5종, 합계 851 → 120 LOC (−86%)
@@ -62,4 +71,5 @@
 - **UI 구조 리팩터 (#19)**: 빌더 `window.*` 직접 변형 제거(`SidebarRefs`/`StatusbarRefs` 반환), DHR 패널 검증을 `dhr_validation.py` 순수함수로 추출, 무동작변경 위반 0 (Match 99%), 신규 테스트 +18케이스(builders 3 + dhr_validation 10 + lot_utils 5)
 - **테스트 hang 근절 + statusbar 단일소스 (#20)**: `error_handler` 헤드리스 모달 가드 + `generate_product_lot` except 타입 교정(DatabaseError 죽은코드 수정) + `SidebarRefs.mixing_status_bar` 단일소스화. 전체 스위트 120 passed, hang 0 (13.85s, 이전 영구정지)
 - **로그 로테이션 동시성 (#21)**: `SafeTimedRotatingFileHandler`(rename 실패 silent tolerate) + `MIXING_LOG_DIR` 테스트 로그 격리. stderr 로테이션 노이즈 0, 123 passed (4.75s, Match 100%)
-- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21)
+- **ExcelExporter 책임 분해 (#22)**: 단일클래스 4책임 → `ExcelWriter`+`PdfScanRenderer`+`ExcelExporter`(facade). 공개 API 비트 보존(모킹 무영향), 128 passed (Match 98%)
+- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22)
