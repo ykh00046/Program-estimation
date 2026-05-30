@@ -26,9 +26,12 @@ class MixingPageRefs:
 
 @dataclass
 class SidebarRefs:
-    """register_sidebar_interfaces가 생성해 main_window가 소유할 참조 묶음."""
+    """register_sidebar_interfaces가 생성해 main_window가 소유할 참조 묶음.
+
+    status_bar는 단일 소스인 `mixing_page_refs.status_bar`에서 파생하므로
+    별도 필드로 중복 보유하지 않는다.
+    """
     mixing_page_refs: object
-    mixing_status_bar: object
     manual_interface: object
     bulk_interface: object
     recipe_interface: object
@@ -260,7 +263,6 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
 
     return SidebarRefs(
         mixing_page_refs=mixing_page_refs,
-        mixing_status_bar=mixing_page_refs.status_bar,
         manual_interface=manual_interface,
         bulk_interface=bulk_interface,
         recipe_interface=recipe_interface,

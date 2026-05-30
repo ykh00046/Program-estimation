@@ -139,7 +139,7 @@ class MainWindow(FluentWindow):
         self._create_panels()
         refs = register_sidebar_interfaces(self)
         self.mixing_page_refs = refs.mixing_page_refs
-        self.mixing_status_bar = refs.mixing_status_bar
+        self.mixing_status_bar = refs.mixing_page_refs.status_bar
         self.manual_interface = refs.manual_interface
         self.bulk_interface = refs.bulk_interface
         self.recipe_interface = refs.recipe_interface
