@@ -189,7 +189,7 @@ def _validate(self) -> bool:
 **bulk_creation_interface `_bulk_create`** — **현행 분기 순서를 비트 단위로 보존**(제품명 검사 → 파싱(ValueError 표시) → entries 검사). 제품명 검사를 파싱 뒤로 미루면 "제품명 공백 + 날짜 오류" 동시 입력 시 노출 메시지가 바뀌므로 순서 유지가 필수:
 
 ```python
-product_name = self.product_name_edit.text()
+product_name = self.product_name_edit.text().strip()  # strip 후 검증·생성기 전달(동작 일관)
 ok, msg = validate_bulk_product(product_name)        # 파싱 '이전' (현행과 동일 위치)
 if not ok:
     QMessageBox.warning(self, "입력 오류", msg); return
