@@ -38,107 +38,18 @@ class RecordDetailDialog(QDialog):
         self.data_manager = data_manager
         self.effects_params = effects_params
         self.parent_dialog = parent
+        self.edit_mode = False
         self.setWindowTitle(f"상세 조회 - {lot_data.iloc[0]['product_lot']}")
         self.setGeometry(300, 300, 900, 600)
         self.init_ui()
 
     def init_ui(self):
-        """UI 초기화."""
+        """UI 초기화 (기본정보 + 자재상세 + 수정/저장 바)."""
         layout = QVBoxLayout()
-        layout.addWidget(self._build_filter_group())
-        layout.addWidget(self._build_records_table())
-        layout.addWidget(self._build_aggregation_group())
+        layout.addWidget(self._build_info_group())
+        layout.addWidget(self._build_detail_group())
         layout.addLayout(self._build_button_bar())
         self.setLayout(layout)
-
-    def _build_filter_group(self):
-        """검색 필터 (시작일/종료일/조회 버튼)."""
-        filter_group = QGroupBox("검색 필터")
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("시작일:"))
-        self.start_date = QDateEdit(calendarPopup=True, date=QDate.currentDate().addMonths(-1))
-        filter_layout.addWidget(self.start_date)
-        filter_layout.addWidget(QLabel("종료일:"))
-        self.end_date = QDateEdit(calendarPopup=True, date=QDate.currentDate())
-        filter_layout.addWidget(self.end_date)
-        search_btn = QPushButton("조회")
-        search_btn.clicked.connect(self.load_records)
-        filter_layout.addWidget(search_btn)
-        filter_layout.addStretch()
-        filter_group.setLayout(filter_layout)
-        return filter_group
-
-    def _build_records_table(self):
-        """기록 6컬럼 테이블 (선택/LOT/작업자/레시피/배합량/일시)."""
-        self.table = QTableWidget()
-        headers = ["선택", "제품LOT", "작업자", "레시피", "배합량", "작업일시"]
-        self.table.setColumnCount(len(headers))
-        self.table.setHorizontalHeaderLabels(headers)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.table.doubleClicked.connect(self.show_detail)
-        return self.table
-
-    def _build_aggregation_group(self):
-        """품목별 배합량 집계 그룹 (콤보 + 집계 버튼 + 결과 레이블)."""
-        agg_group = QGroupBox("품목별 배합량 집계")
-        agg_layout = QHBoxLayout()
-        agg_layout.addWidget(QLabel("품목 선택:"))
-        self.item_combo = QComboBox()
-        self.item_combo.setMinimumWidth(250)
-        self.item_combo.setEditable(True)
-        self.item_combo.setInsertPolicy(QComboBox.NoInsert)
-        self.item_combo.lineEdit().setPlaceholderText("품목명 검색...")
-        agg_layout.addWidget(self.item_combo)
-        agg_btn = QPushButton("집계 실행")
-        agg_btn.clicked.connect(self.aggregate_by_item)
-        agg_layout.addWidget(agg_btn)
-        self.agg_result_label = QLabel("총 배합량: -")
-        self.agg_result_label.setStyleSheet("font-weight: bold;")
-        agg_layout.addWidget(self.agg_result_label)
-        agg_layout.addStretch()
-        agg_group.setLayout(agg_layout)
-        return agg_group
-
-    def _build_button_bar(self):
-        """전체선택/해제/상세/시간체크/출력/폴더/삭제/닫기 버튼 바."""
-        button_layout = QHBoxLayout()
-        select_all_btn = StyledButton("전체 선택", "secondary")
-        select_all_btn.clicked.connect(self.select_all)
-        button_layout.addWidget(select_all_btn)
-
-        deselect_all_btn = StyledButton("전체 해제", "secondary")
-        deselect_all_btn.clicked.connect(self.deselect_all)
-        button_layout.addWidget(deselect_all_btn)
-
-        button_layout.addSpacing(20)
-
-        detail_btn = StyledButton("상세 조회", "primary")
-        detail_btn.clicked.connect(self.show_detail)
-        button_layout.addWidget(detail_btn)
-
-        self.chk_include_time_export = QCheckBox("작업시간 표시")
-        self.chk_include_time_export.setChecked(True)
-        button_layout.addWidget(self.chk_include_time_export)
-
-        export_btn = StyledButton("엑셀/PDF 출력", "success")
-        export_btn.clicked.connect(self.export_selected_record)
-        button_layout.addWidget(export_btn)
-
-        open_folder_btn = StyledButton("폴더 열기", "secondary")
-        open_folder_btn.clicked.connect(self._open_output_folder)
-        button_layout.addWidget(open_folder_btn)
-
-        delete_btn = StyledButton("삭제", "danger")
-        delete_btn.clicked.connect(self.delete_selected_record)
-        button_layout.addWidget(delete_btn)
-
-        button_layout.addStretch()
-
-        close_btn = StyledButton("닫기", "secondary")
-        close_btn.clicked.connect(self.close)
-        button_layout.addWidget(close_btn)
-        return button_layout
 
     def _build_info_group(self):
         """기본 정보 그리드 (제품 LOT/작업자/레시피/배합량/작업일시)."""
