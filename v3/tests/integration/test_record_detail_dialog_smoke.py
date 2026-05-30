@@ -62,6 +62,15 @@ class TestRecordDetailDialogSmoke(unittest.TestCase):
         src = inspect.getsource(RecordDetailDialog)
         self.assertEqual(src.count("def _build_button_bar"), 1)
 
+    def test_button_bar_is_detail_variant(self):
+        from PySide6.QtWidgets import QAbstractButton
+        d = RecordDetailDialog(_make_df(), MagicMock(), {"dpi": 250})
+        texts = {b.text() for b in d.findChildren(QAbstractButton)}
+        # 상세용 버튼 구성, 목록용(전체 선택/삭제) 부재
+        self.assertTrue({"수정 모드", "저장", "실적서 출력", "닫기"} <= texts, texts)
+        self.assertNotIn("전체 선택", texts)
+        self.assertNotIn("삭제", texts)
+
     def test_toggle_edit_mode_no_crash(self):
         d = RecordDetailDialog(_make_df(), MagicMock(), {"dpi": 250})
         with patch("ui.record_view_dialog.QMessageBox"):
