@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -63,7 +64,7 @@ class TestBulkHelpers(unittest.TestCase):
 
 class TestDhrDatabaseMessages(unittest.TestCase):
     @patch("models.dhr_database.logger")
-    @patch.object(DhrDatabaseManager, "_generate_product_lot_with_conn", side_effect=RuntimeError("boom"))
+    @patch.object(DhrDatabaseManager, "_generate_product_lot_with_conn", side_effect=sqlite3.OperationalError("boom"))
     def test_generate_product_lot_logs_korean_fallback_message(self, _mock_generate, mock_logger):
         with tempfile.TemporaryDirectory() as tmp:
             manager = DhrDatabaseManager(db_path=os.path.join(tmp, "dhr.db"))
@@ -71,8 +72,10 @@ class TestDhrDatabaseMessages(unittest.TestCase):
             lot = manager.generate_product_lot("TEST", "2026-03-31")
 
             self.assertEqual(lot, "TEST26033101")
+            # get_connection이 sqlite3.Error를 DatabaseError(접두 메시지 포함)로 변환한 뒤
+            # generate_product_lot이 이를 포착해 fallback LOT을 반환한다.
             mock_logger.error.assert_called_once_with(
-                "DHR LOT 생성 중 오류: boom. 기본 LOT를 사용합니다."
+                "DHR LOT 생성 중 오류: DHR 데이터베이스 연결 오류: boom. 기본 LOT를 사용합니다."
             )
 
 

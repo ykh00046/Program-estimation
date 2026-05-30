@@ -89,8 +89,24 @@ def safe_execute(
         return default_return
 
 
+def _is_headless() -> bool:
+    """GUI 이벤트 루프가 없는 환경(offscreen/테스트/CI)인지 판별.
+
+    이 경우 모달 `exec()`는 무한 블록되므로 로그 폴백으로 전환한다.
+    프로덕션은 실제 플랫폼으로 구동되어 영향이 없다.
+    """
+    try:
+        from PySide6.QtGui import QGuiApplication  # type: ignore
+    except ImportError:
+        return True
+    app = QGuiApplication.instance()
+    if app is None:
+        return True
+    return app.platformName() == "offscreen"
+
+
 def _show_message(icon_name: str, title_text: str, title: str, detail: str = "", parent=None):
-    if QMessageBox is None:
+    if QMessageBox is None or _is_headless():
         if icon_name == "error":
             logger.error(f"{title} | {detail}")
         elif icon_name == "warning":

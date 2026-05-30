@@ -20,7 +20,7 @@ from config.settings import USER_DATA_DIR
 from models._sqlite_base import SqliteManagerBase
 from models.lot_utils import next_lot
 from utils.logger import logger
-from utils.error_handler import handle_exceptions
+from utils.error_handler import handle_exceptions, DatabaseError
 
 
 # DHR 전용 DB 파일 경로
@@ -188,7 +188,9 @@ class DhrDatabaseManager(SqliteManagerBase):
         try:
             with self.get_connection() as conn:
                 return self._generate_product_lot_with_conn(conn, product_name, work_date)
-        except sqlite3.Error as e:
+        except (sqlite3.Error, DatabaseError) as e:
+            # get_connection이 sqlite3.Error를 DatabaseError로 변환하므로 둘 다 포착해야
+            # fallback이 실제로 동작한다(post-#18 잠재 버그 교정).
             logger.error(f"DHR LOT 생성 중 오류: {e}. 기본 LOT를 사용합니다.")
             return f"{base_lot}01"
 
