@@ -14,6 +14,7 @@ from PySide6.QtGui import QColor
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme
 from ui.components import StyledButton
+from ui.panels.dhr_validation import validate_recipe_input
 
 class RecipeManagementInterface(QWidget):
     """DHR 레시피 관리 패널"""
@@ -317,10 +318,11 @@ class RecipeManagementInterface(QWidget):
             self.mat_table.removeRow(row)
     
     def _save_recipe(self):
-        name = self.name_edit.text().strip()
-        if not name:
-            QMessageBox.warning(self, "입력 오류", "레시피명을 입력하세요.")
+        ok, msg = validate_recipe_input(self.name_edit.text())
+        if not ok:
+            QMessageBox.warning(self, "입력 오류", msg)
             return
+        name = self.name_edit.text().strip()
         
         recipe_data = {
             'recipe_name': name,

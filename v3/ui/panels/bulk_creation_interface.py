@@ -15,6 +15,7 @@ from ui.widgets.pasteable_table import PasteableTableWidget, PasteableSimpleTabl
 from config.config_manager import config
 from utils.logger import logger
 from utils.bulk_helpers import parse_date_cell, parse_bulk_entries, get_materials_from_table
+from ui.panels.dhr_validation import validate_bulk_product, validate_bulk_entries
 from models.dhr_bulk_generator import DhrBulkGenerator
 from qfluentwidgets import CardWidget, LineEdit, CheckBox
 
@@ -240,9 +241,11 @@ class BulkCreationInterface(QScrollArea):
         return get_materials_from_table(self.mat_table)
 
     def _bulk_create(self):
+        # 현행 분기 순서 보존: 제품명 검사(파싱 전) → 파싱 → 엔트리 검사(파싱 후)
         product_name = self.product_name_edit.text().strip()
-        if not product_name:
-            QMessageBox.warning(self, "입력 오류", "제품명을 입력하세요.")
+        ok, msg = validate_bulk_product(product_name)
+        if not ok:
+            QMessageBox.warning(self, "입력 오류", msg)
             return
 
         try:
@@ -252,8 +255,9 @@ class BulkCreationInterface(QScrollArea):
             QMessageBox.warning(self, "입력 오류", str(e))
             return
 
-        if not entries:
-            QMessageBox.warning(self, "입력 오류", "생성할 데이터가 없습니다.")
+        ok, msg = validate_bulk_entries(len(entries))
+        if not ok:
+            QMessageBox.warning(self, "입력 오류", msg)
             return
 
         include_time = self.chk_include_time.isChecked()

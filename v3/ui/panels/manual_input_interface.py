@@ -14,6 +14,7 @@ from ui.components import StyledButton, create_group_box, center_window
 from ui.styles import UIStyles, UITheme
 from ui.panels.scan_effects_panel import ScanEffectsPanel
 from ui.panels.signature_panel import SignaturePanel
+from ui.panels.dhr_validation import validate_manual_input
 from ui.widgets.pasteable_table import PasteableTableWidget
 from config.config_manager import config
 from utils.logger import logger
@@ -279,22 +280,20 @@ class ManualInputInterface(QScrollArea):
                     pass
 
     def _validate(self) -> bool:
-        """입력 검증"""
-        if not self.product_name_edit.text().strip():
-            QMessageBox.warning(self, "입력 오류", "제품명을 입력하세요.")
+        """입력 검증 — 규칙은 순수 함수, 포커스 이동은 focus_field로 뷰가 처리."""
+        ok, msg, focus = validate_manual_input(
+            self.product_name_edit.text(),
+            self.amount_spin.value(),
+            self._get_effective_material_row_count(),
+        )
+        if ok:
+            return True
+        QMessageBox.warning(self, "입력 오류", msg)
+        if focus == "product_name":
             self.product_name_edit.setFocus()
-            return False
-        
-        if self.amount_spin.value() <= 0:
-            QMessageBox.warning(self, "입력 오류", "배합량을 입력하세요.")
+        elif focus == "amount":
             self.amount_spin.setFocus()
-            return False
-        
-        if self._get_effective_material_row_count() == 0:
-            QMessageBox.warning(self, "입력 오류", "자재를 최소 1개 이상 입력하세요.")
-            return False
-        
-        return True
+        return False
 
     def _save_and_export(self):
         """Save DHR record and export Excel/PDF."""
