@@ -61,6 +61,15 @@
 | [excel_exporter_decomposition.analysis.md](./excel_exporter_decomposition/excel_exporter_decomposition.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **98%**) |
 | [excel_exporter_decomposition.report.md](./excel_exporter_decomposition/excel_exporter_decomposition.report.md) | 04-report/features/ | Report |
 
+## PDCA #23 (record_view_dialog Decomposition)
+
+| 문서 | 원래 위치 | 단계 |
+| --- | --- | --- |
+| [record_view_dialog_decomposition.plan.md](./record_view_dialog_decomposition/record_view_dialog_decomposition.plan.md) | 01-plan/features/ | Plan |
+| [record_view_dialog_decomposition.design.md](./record_view_dialog_decomposition/record_view_dialog_decomposition.design.md) | 02-design/features/ | Design |
+| [record_view_dialog_decomposition.analysis.md](./record_view_dialog_decomposition/record_view_dialog_decomposition.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **100%**) |
+| [record_view_dialog_decomposition.report.md](./record_view_dialog_decomposition/record_view_dialog_decomposition.report.md) | 04-report/features/ | Report |
+
 ## 핵심 성과
 
 - **`_init_ui` 분해**: 패널/다이얼로그 5종, 합계 851 → 120 LOC (−86%)
@@ -72,4 +81,5 @@
 - **테스트 hang 근절 + statusbar 단일소스 (#20)**: `error_handler` 헤드리스 모달 가드 + `generate_product_lot` except 타입 교정(DatabaseError 죽은코드 수정) + `SidebarRefs.mixing_status_bar` 단일소스화. 전체 스위트 120 passed, hang 0 (13.85s, 이전 영구정지)
 - **로그 로테이션 동시성 (#21)**: `SafeTimedRotatingFileHandler`(rename 실패 silent tolerate) + `MIXING_LOG_DIR` 테스트 로그 격리. stderr 로테이션 노이즈 0, 123 passed (4.75s, Match 100%)
 - **ExcelExporter 책임 분해 (#22)**: 단일클래스 4책임 → `ExcelWriter`+`PdfScanRenderer`+`ExcelExporter`(facade). 공개 API 비트 보존(모킹 무영향), 128 passed (Match 98%)
-- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22)
+- **record_view_dialog 책임 분해 (#23)**: 일괄 출력/삭제 tally 루프 → `RecordOpsController`(Qt 비의존). 136 passed (Match 100%)
+- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22/#23)
