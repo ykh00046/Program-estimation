@@ -23,6 +23,7 @@ from models.excel_exporter import ExcelExporter
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme
 from ui.components import StyledButton
+from ui.record_ops_controller import RecordOpsController
 
 
 
@@ -381,6 +382,7 @@ class RecordViewDialog(QDialog):
         super().__init__(parent)
         self.data_manager = data_manager
         self.effects_params = effects_params  # 스캔 효과 파라미터 저장
+        self._ops = RecordOpsController(data_manager)
         self.setWindowTitle("배합 기록 조회")
         self.setGeometry(200, 200, 1200, 800)
         self.init_ui()
@@ -602,34 +604,18 @@ class RecordViewDialog(QDialog):
             QMessageBox.warning(self, "경고", "출력할 기록을 선택하세요.")
             return
 
-        success_count, fail_count, failed_lots = 0, 0, []
         include_time = self.chk_include_time_export.isChecked()
-        for product_lot in checked_items:
-            logger.info(f"엑셀/PDF 재출력 시작: LOT {product_lot}")
-            try:
-                # 효과 파라미터 및 작업시간 포함 여부 전달
-                pdf_file = self.data_manager.export_existing_record(
-                    product_lot, 
-                    self.effects_params,
-                    include_work_time=include_time
-                )
-                if pdf_file:
-                    success_count += 1
-                else:
-                    fail_count += 1
-                    failed_lots.append(product_lot)
-            except Exception as e:
-                fail_count += 1
-                failed_lots.append(product_lot)
-                logger.error(f"엑셀/PDF 재출력 오류: LOT {product_lot}, 오류: {e}")
+        result = self._ops.export_records(
+            checked_items, self.effects_params, include_work_time=include_time
+        )
 
-        summary_message = f"총 {len(checked_items)}건 중 {success_count}건 성공, {fail_count}건 실패."
-        if failed_lots:
-            summary_message += f"\n실패 LOT: {', '.join(failed_lots)}"
-        
-        if success_count > 0:
+        summary_message = f"총 {result.total}건 중 {result.success_count}건 성공, {result.fail_count}건 실패."
+        if result.failed_lots:
+            summary_message += f"\n실패 LOT: {', '.join(result.failed_lots)}"
+
+        if result.success_count > 0:
             reply = QMessageBox.question(
-                self, "출력 완료" if fail_count == 0 else "부분 출력 완료",
+                self, "출력 완료" if result.fail_count == 0 else "부분 출력 완료",
                 f"{summary_message}\n\n결과 폴더를 확인하시겠습니까?",
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
             )
@@ -649,23 +635,12 @@ class RecordViewDialog(QDialog):
         if reply == QMessageBox.No:
             return
 
-        success_count, fail_count, failed_lots = 0, 0, []
-        for product_lot in checked_items:
-            try:
-                if self.data_manager.delete_record(product_lot):
-                    success_count += 1
-                else:
-                    fail_count += 1
-                    failed_lots.append(product_lot)
-            except Exception as e:
-                fail_count += 1
-                failed_lots.append(product_lot)
-                logger.error(f"배합 기록 삭제 오류: LOT {product_lot}, 오류: {e}")
+        result = self._ops.delete_records(checked_items)
 
-        summary_message = f"총 {len(checked_items)}건 중 {success_count}건 삭제 성공, {fail_count}건 실패."
-        if failed_lots:
-            summary_message += f"\n실패 LOT: {', '.join(failed_lots)}"
-        
+        summary_message = f"총 {result.total}건 중 {result.success_count}건 삭제 성공, {result.fail_count}건 실패."
+        if result.failed_lots:
+            summary_message += f"\n실패 LOT: {', '.join(result.failed_lots)}"
+
         QMessageBox.information(self, "삭제 완료", summary_message)
         self.load_records()
 
