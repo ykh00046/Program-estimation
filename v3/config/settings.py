@@ -130,7 +130,9 @@ _output_candidates = [
     os.path.join(BASE_PATH, "output"),
 ]
 OUTPUT_FOLDER = _first_existing(_output_candidates, create_dir=True)
-LOG_FOLDER = USER_LOG_DIR
+# MIXING_LOG_DIR 환경변수로 로그 경로를 오버라이드 가능(테스트 격리용).
+# 미설정 시 프로덕션 기본 경로(USER_LOG_DIR) 사용.
+LOG_FOLDER = os.environ.get("MIXING_LOG_DIR", USER_LOG_DIR)
 
 # Resolve known Excel resource files even if the file names vary
 _recipe_candidates = [

@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import unittest
 
 
@@ -11,6 +12,8 @@ def _bootstrap_environment() -> str:
         sys.path.insert(0, project_root)
 
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    # 테스트 로그를 임시 경로로 격리(공유 프로덕션 로그 경합 방지). PDCA #21.
+    os.environ.setdefault("MIXING_LOG_DIR", tempfile.mkdtemp(prefix="mixing_test_logs_"))
     return current_dir
 
 
