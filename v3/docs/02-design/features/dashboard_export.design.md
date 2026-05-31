@@ -4,7 +4,7 @@
 > **Plan**: [../../01-plan/features/dashboard_export.plan.md](../../01-plan/features/dashboard_export.plan.md)
 > **Author**: AI Assistant
 > **Created**: 2026-05-31
-> **Status**: 🔄 Design
+> **Status**: ✅ Design (gap-detector 97% 반영: 버튼 예시를 QPushButton+UIStyles로 정정, 단위 테스트 7종)
 > **PDCA Cycle**: #25
 
 ---
@@ -89,10 +89,14 @@ def export_pdf(self, start, end):
 ## 4. UI 연동 (`ui/panels/dashboard_panel.py`)
 
 ### 4.1 `_build_period_bar`에 버튼 추가
-기간 콤보 + 새로고침 우측에:
+기간 콤보 + 새로고침 우측에 (기존 패널 컨벤션인 QPushButton + UIStyles 사용):
 ```python
-excel_btn = StyledButton("Excel 내보내기", "secondary"); excel_btn.clicked.connect(self._export_excel)
-pdf_btn = StyledButton("PDF 내보내기", "secondary"); pdf_btn.clicked.connect(self._export_pdf)
+self.export_excel_btn = QPushButton("Excel 내보내기")
+self.export_excel_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+self.export_excel_btn.clicked.connect(self._export_excel)
+self.export_pdf_btn = QPushButton("PDF 내보내기")
+self.export_pdf_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+self.export_pdf_btn.clicked.connect(self._export_pdf)
 ```
 
 ### 4.2 핸들러
