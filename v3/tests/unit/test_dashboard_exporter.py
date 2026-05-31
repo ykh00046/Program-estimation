@@ -103,6 +103,25 @@ class TestDashboardExporter(unittest.TestCase):
         path = exp.export_excel("2026-05-01", "2026-05-31")
         self.assertTrue(os.path.basename(path).startswith("대시보드_2026-05-01_2026-05-31"))
 
+    def test_chart_present_when_monthly_data(self):
+        # openpyxl 차트는 write-only(재읽기 불가) → in-memory 워크북으로 검증
+        monthly = [
+            {"year_month": "2026-04", "record_count": 3, "total_amount": 300.0},
+            {"year_month": "2026-05", "record_count": 5, "total_amount": 500.0},
+        ]
+        exp = DashboardExporter(_make_dm(monthly=monthly), output_folder=self.out)
+        wb = exp._build_workbook("2026-04-01", "2026-05-31")
+        charts = wb.active._charts
+        self.assertEqual(len(charts), 1)
+        self.assertEqual(charts[0].title.tx.rich.p[0].r[0].t, "월별 총 배합량(g)")
+
+    def test_chart_absent_when_empty(self):
+        exp = DashboardExporter(_make_dm(), output_folder=self.out)
+        wb = exp._build_workbook(None, None)
+        self.assertEqual(len(wb.active._charts), 0)
+        # 빈 데이터에도 파일 생성 크래시 0
+        self.assertIsNotNone(exp.export_excel(None, None))
+
 
 if __name__ == "__main__":
     unittest.main()
