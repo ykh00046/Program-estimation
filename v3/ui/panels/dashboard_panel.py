@@ -5,6 +5,7 @@ mixing_records / mixing_details에 누적된 데이터를 KPI 카드 + 월별 �
 
 집계 로직은 모두 DataManager에 위임. 본 패널은 표현만 담당.
 """
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 
@@ -13,11 +14,12 @@ from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QFrame,
-    QStackedWidget, QGridLayout, QGroupBox,
+    QStackedWidget, QGridLayout, QGroupBox, QMessageBox,
 )
 
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme
+from models.dashboard_exporter import DashboardExporter
 
 try:
     from PySide6.QtCharts import (
@@ -45,6 +47,7 @@ class DashboardPanel(QWidget):
         super().__init__(parent)
         self.setObjectName("DashboardPage")
         self.data_manager = data_manager
+        self._exporter = DashboardExporter(data_manager)
         self._has_initial_loaded = False
         self._init_ui()
 
@@ -97,7 +100,41 @@ class DashboardPanel(QWidget):
         self.refresh_btn.clicked.connect(self.refresh)
         row.addWidget(self.refresh_btn)
 
+        self.export_excel_btn = QPushButton("Excel 내보내기")
+        self.export_excel_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.export_excel_btn.clicked.connect(self._export_excel)
+        row.addWidget(self.export_excel_btn)
+
+        self.export_pdf_btn = QPushButton("PDF 내보내기")
+        self.export_pdf_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.export_pdf_btn.clicked.connect(self._export_pdf)
+        row.addWidget(self.export_pdf_btn)
+
         return bar
+
+    # ------------------------------------------------------------------
+    # 내보내기 (PDCA #25)
+    # ------------------------------------------------------------------
+
+    def _export_excel(self) -> None:
+        start, end = self._current_date_range()
+        self._notify_export(self._exporter.export_excel(start, end))
+
+    def _export_pdf(self) -> None:
+        start, end = self._current_date_range()
+        self._notify_export(self._exporter.export_pdf(start, end))
+
+    def _notify_export(self, path: Optional[str]) -> None:
+        if path:
+            reply = QMessageBox.question(
+                self, "내보내기 완료",
+                f"파일이 생성되었습니다.\n{path}\n\n폴더를 여시겠습니까?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes,
+            )
+            if reply == QMessageBox.Yes:
+                os.startfile(os.path.dirname(path))  # noqa: S606 — Windows 전용 앱
+        else:
+            QMessageBox.warning(self, "내보내기 실패", "파일 생성에 실패했습니다.")
 
     def _build_kpi_row(self) -> QWidget:
         container = QWidget()
