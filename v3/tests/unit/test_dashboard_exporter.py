@@ -122,6 +122,15 @@ class TestDashboardExporter(unittest.TestCase):
         # 빈 데이터에도 파일 생성 크래시 0
         self.assertIsNotNone(exp.export_excel(None, None))
 
+    def test_export_excel_with_chart_saves_to_disk(self):
+        # 차트 포함 워크북이 디스크 직렬화/재오픈까지 무오류 (차트 write 경로 회귀)
+        monthly = [{"year_month": "2026-05", "record_count": 5, "total_amount": 500.0}]
+        exp = DashboardExporter(_make_dm(monthly=monthly), output_folder=self.out)
+        path = exp.export_excel("2026-05-01", "2026-05-31")
+        self.assertIsNotNone(path)
+        self.assertTrue(os.path.exists(path))
+        load_workbook(path)  # 재오픈 무오류
+
 
 if __name__ == "__main__":
     unittest.main()
