@@ -79,6 +79,15 @@
 | [record_detail_dialog_fix.analysis.md](./record_detail_dialog_fix/record_detail_dialog_fix.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **100%**) |
 | [record_detail_dialog_fix.report.md](./record_detail_dialog_fix/record_detail_dialog_fix.report.md) | 04-report/features/ | Report |
 
+## PDCA #25 (Dashboard Export — 사용자 가치 기능)
+
+| 문서 | 원래 위치 | 단계 |
+| --- | --- | --- |
+| [dashboard_export.plan.md](./dashboard_export/dashboard_export.plan.md) | 01-plan/features/ | Plan |
+| [dashboard_export.design.md](./dashboard_export/dashboard_export.design.md) | 02-design/features/ | Design |
+| [dashboard_export.analysis.md](./dashboard_export/dashboard_export.analysis.md) | 03-analysis/features/ | Analysis (Match Rate **97%**) |
+| [dashboard_export.report.md](./dashboard_export/dashboard_export.report.md) | 04-report/features/ | Report |
+
 ## 핵심 성과
 
 - **`_init_ui` 분해**: 패널/다이얼로그 5종, 합계 851 → 120 LOC (−86%)
@@ -92,4 +101,5 @@
 - **ExcelExporter 책임 분해 (#22)**: 단일클래스 4책임 → `ExcelWriter`+`PdfScanRenderer`+`ExcelExporter`(facade). 공개 API 비트 보존(모킹 무영향), 128 passed (Match 98%)
 - **record_view_dialog 책임 분해 (#23)**: 일괄 출력/삭제 tally 루프 → `RecordOpsController`(Qt 비의존). 136 passed (Match 100%)
 - **RecordDetailDialog 복구 (#24)**: 복사-붙여넣기 잔재로 생성 시 크래시(load_records AttributeError)하던 상세조회를 본래 위젯으로 복구. -93 LOC, 143 passed (Match 100%)
-- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22/#23/#24)
+- **대시보드 출력 (#25)**: #17 대시보드를 Excel/PDF 보고서로 내보내기(DashboardExporter, openpyxl 4섹션 + win32com PDF). 첫 사용자 가치 기능, 154 passed (Match 97%)
+- **아카이브 날짜**: 2026-05-19 (#13/#14), 2026-05-23 (#16), 2026-05-30 (#19), 2026-05-31 (#20/#21/#22/#23/#24/#25)
