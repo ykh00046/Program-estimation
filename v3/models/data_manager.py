@@ -13,6 +13,7 @@ from config.google_sheets_config import GoogleSheetsConfig
 from config.settings import LOT_FILE, RECIPE_FILE
 from models.backup.google_sheets_backup import GoogleSheetsBackup
 from models.database import MixingDatabaseManager
+from models.inventory_alert import MaterialAlert, evaluate_inventory_alerts
 from models.lot_manager import LotManager
 from models.lot_utils import next_lot
 from utils.logger import logger
@@ -457,3 +458,61 @@ class DataManager:
         return self.db_manager.get_recipe_frequency(
             limit=limit, start_date=start_date, end_date=end_date
         )
+
+    # ------------------------------------------------------------------
+    # 자재 재고 (PDCA #27 inventory_threshold_alert)
+    # ------------------------------------------------------------------
+
+    def get_all_material_stock(self) -> List[Dict]:
+        """자재 재고 마스터 전체 조회."""
+        return self.db_manager.get_all_material_stock()
+
+    def upsert_material_stock(
+        self,
+        material_code: str,
+        material_name: str,
+        current_stock: float,
+        min_stock_threshold: float,
+        unit: str = "g",
+    ) -> bool:
+        """자재 재고/임계값 저장 (material_code 기준 upsert)."""
+        return self.db_manager.upsert_material_stock(
+            material_code, material_name, current_stock, min_stock_threshold, unit
+        )
+
+    def seed_material_stock_from_history(self) -> int:
+        """배합 이력의 자재를 재고 마스터에 0/0으로 시드. 신규 삽입 건수 반환."""
+        return self.db_manager.seed_material_stock_from_history()
+
+    def get_inventory_alerts(self) -> List[MaterialAlert]:
+        """현재 재고 기준 임계값 경고 목록(부족분 큰 순).
+
+        전역 기본 임계값을 적용해 DB의 ``get_low_stock_materials`` SQL 경로와
+        동일한 판정 결과를 보장한다(순수 함수 기반 프로그램 API).
+        """
+        rows = self.db_manager.get_all_material_stock()
+        return evaluate_inventory_alerts(rows, default_threshold=self.get_default_min_threshold())
+
+    def get_default_min_threshold(self) -> float:
+        """전역 기본 최소 임계값(g). 자재별 임계값이 0일 때 적용."""
+        try:
+            return float(config.get("inventory_alert.default_min_threshold", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def set_default_min_threshold(self, value: float) -> bool:
+        """전역 기본 최소 임계값을 설정에 저장."""
+        try:
+            amount = max(0.0, float(value or 0.0))
+        except (TypeError, ValueError):
+            amount = 0.0
+        return config.set_value("inventory_alert.default_min_threshold", amount)
+
+    def get_low_stock_materials(self, default_threshold: Optional[float] = None) -> List[Dict]:
+        """현재고가 (자재별 또는 전역 기본) 임계값 이하인 자재 목록.
+
+        `default_threshold` 미지정 시 설정의 전역 기본 임계값을 사용한다.
+        """
+        if default_threshold is None:
+            default_threshold = self.get_default_min_threshold()
+        return self.db_manager.get_low_stock_materials(default_threshold=default_threshold)

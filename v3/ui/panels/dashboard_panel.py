@@ -61,6 +61,7 @@ class DashboardPanel(QWidget):
         layout.setSpacing(14)
 
         layout.addWidget(self._build_period_bar())
+        layout.addWidget(self._build_low_stock_section())
         layout.addWidget(self._build_kpi_row())
         layout.addWidget(self._build_monthly_chart(), stretch=2)
 
@@ -110,7 +111,143 @@ class DashboardPanel(QWidget):
         self.export_pdf_btn.clicked.connect(self._export_pdf)
         row.addWidget(self.export_pdf_btn)
 
+        self.stock_settings_btn = QPushButton("재고 설정")
+        self.stock_settings_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.stock_settings_btn.clicked.connect(self._open_stock_settings)
+        row.addWidget(self.stock_settings_btn)
+
         return bar
+
+    # ------------------------------------------------------------------
+    # 재고 부족 알림 (PDCA: material-stock-threshold-alert)
+    # ------------------------------------------------------------------
+
+    _MAX_ALERT_CARDS = 6
+
+    def _build_low_stock_section(self) -> QWidget:
+        card = QFrame()
+        card.setStyleSheet(UIStyles.get_card_style())
+        outer = QVBoxLayout(card)
+        outer.setContentsMargins(16, 12, 16, 12)
+        outer.setSpacing(8)
+
+        title = QLabel("⚠ 재고 부족 알림")
+        title.setStyleSheet(
+            f"color: {UITheme.TEXT_PRIMARY}; font-size: 15px; font-weight: 600;"
+        )
+        outer.addWidget(title)
+
+        self.low_stock_empty_label = QLabel("✅ 모든 자재 재고가 정상입니다.")
+        self.low_stock_empty_label.setStyleSheet(
+            f"color: {UITheme.TEXT_SECONDARY}; font-size: 13px;"
+        )
+        outer.addWidget(self.low_stock_empty_label)
+
+        self.low_stock_container = QWidget()
+        self.low_stock_layout = QHBoxLayout(self.low_stock_container)
+        self.low_stock_layout.setContentsMargins(0, 0, 0, 0)
+        self.low_stock_layout.setSpacing(12)
+        self.low_stock_layout.addStretch(1)
+        self.low_stock_container.setVisible(False)
+        outer.addWidget(self.low_stock_container)
+
+        self.low_stock_more_label = QLabel("")
+        self.low_stock_more_label.setStyleSheet(
+            f"color: {UITheme.TEXT_SECONDARY}; font-size: 12px;"
+        )
+        self.low_stock_more_label.setVisible(False)
+        outer.addWidget(self.low_stock_more_label)
+
+        return card
+
+    def _open_stock_settings(self) -> None:
+        # 지연 임포트로 순환 의존 방지
+        from ui.dialogs.stock_settings_dialog import StockSettingsDialog
+        dialog = StockSettingsDialog(self.data_manager, self)
+        dialog.exec()
+        self.refresh()
+
+    def _refresh_low_stock_alerts(self) -> None:
+        rows = self.data_manager.get_low_stock_materials()
+        self._clear_alert_cards()
+        if not rows:
+            self.low_stock_empty_label.setVisible(True)
+            self.low_stock_container.setVisible(False)
+            self.low_stock_more_label.setVisible(False)
+            return
+
+        self.low_stock_empty_label.setVisible(False)
+        self.low_stock_container.setVisible(True)
+        shown = rows[: self._MAX_ALERT_CARDS]
+        for item in shown:
+            card = self._make_alert_card(item)
+            self.low_stock_layout.insertWidget(self.low_stock_layout.count() - 1, card)
+
+        remaining = len(rows) - len(shown)
+        if remaining > 0:
+            self.low_stock_more_label.setText(f"+{remaining}건 더 임계값 이하입니다.")
+            self.low_stock_more_label.setVisible(True)
+        else:
+            self.low_stock_more_label.setVisible(False)
+
+    def _clear_alert_cards(self) -> None:
+        # stretch(마지막 항목)는 유지하고 카드 위젯만 제거
+        for i in reversed(range(self.low_stock_layout.count())):
+            item = self.low_stock_layout.itemAt(i)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.setParent(None)
+
+    def _make_alert_card(self, item: Dict) -> QFrame:
+        current = float(item.get("current_stock") or 0.0)
+        threshold = float(item.get("threshold") or 0.0)
+        shortage = float(item.get("shortage") or max(0.0, threshold - current))
+        unit = str(item.get("unit") or "g")
+        name = str(item.get("material_name") or item.get("material_code") or "(이름없음)")
+
+        # 재고 소진(0 이하)은 ERROR, 임박은 WARNING
+        accent = UITheme.ERROR_COLOR if current <= 0 else UITheme.WARNING_COLOR
+
+        card = QFrame()
+        card.setObjectName("StockAlertCard")
+        card.setStyleSheet(
+            f"""
+            QFrame#StockAlertCard {{
+                background-color: {UITheme.SURFACE_ALT};
+                border: 1px solid {UITheme.BORDER_SUBTLE};
+                border-left: 3px solid {accent};
+                border-radius: {UITheme.CARD_BORDER_RADIUS}px;
+            }}
+            """
+        )
+        card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        card.setMinimumWidth(180)
+
+        box = QVBoxLayout(card)
+        box.setContentsMargins(14, 10, 14, 10)
+        box.setSpacing(4)
+
+        name_label = QLabel(name)
+        name_label.setStyleSheet(
+            f"color: {UITheme.TEXT_PRIMARY}; font-size: 15px; font-weight: 700;"
+        )
+        box.addWidget(name_label)
+
+        cur_label = QLabel(f"현재 재고: {self._format_qty(current, unit)}")
+        cur_label.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY}; font-size: 12px;")
+        box.addWidget(cur_label)
+
+        thr_label = QLabel(f"임계값: {self._format_qty(threshold, unit)}")
+        thr_label.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY}; font-size: 12px;")
+        box.addWidget(thr_label)
+
+        short_label = QLabel(f"부족분: {self._format_qty(shortage, unit)}")
+        short_label.setStyleSheet(
+            f"color: {accent}; font-size: 13px; font-weight: 700;"
+        )
+        box.addWidget(short_label)
+
+        return card
 
     # ------------------------------------------------------------------
     # 내보내기 (PDCA #25)
@@ -293,6 +430,7 @@ class DashboardPanel(QWidget):
     def refresh(self) -> None:
         """모든 섹션 데이터 재로드 (public)."""
         try:
+            self._refresh_low_stock_alerts()
             self._refresh_kpis()
             self._refresh_chart()
             self._refresh_top_materials()
@@ -431,6 +569,17 @@ class DashboardPanel(QWidget):
         if value < 1000:
             return f"{value:,.0f} g"
         return f"{value / 1000:,.2f} kg"
+
+    @classmethod
+    def _format_qty(cls, value: float, unit: str = "g") -> str:
+        """수량+단위 표기. 단위가 g면 g/kg 자동 변환, 그 외 단위는 그대로."""
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            num = 0.0
+        if (unit or "g") == "g":
+            return cls._format_amount(num)
+        return f"{num:,.0f} {unit}"
 
 
 def _make_item(text: str, align_right: bool = False) -> QTableWidgetItem:

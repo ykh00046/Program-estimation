@@ -224,6 +224,24 @@ class Config:
             _logger.error(f"설정 파일 저장 실패 ({self._config_path}): {e}")
             return False
 
+    def set_value(self, dotted_key: str, value: Any) -> bool:
+        """점표기 키 경로에 값을 설정하고 파일에 저장한다.
+
+        예: set_value("inventory_alert.default_min_threshold", 500)
+        """
+        try:
+            parts = dotted_key.split(".")
+            node: Dict[str, Any] = self._data
+            for part in parts[:-1]:
+                if not isinstance(node.get(part), dict):
+                    node[part] = {}
+                node = node[part]
+            node[parts[-1]] = value
+            return self._save_config()
+        except (TypeError, AttributeError, KeyError) as e:
+            _logger.error(f"설정값 저장 실패 ({dotted_key}): {e}")
+            return False
+
 
 # Global singleton-like instance
 config = Config()
