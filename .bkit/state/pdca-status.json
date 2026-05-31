@@ -1,0 +1,209 @@
+{
+  "version": "3.0",
+  "lastUpdated": "2026-05-28T07:09:22.211Z",
+  "activeFeatures": [
+    "logic_function_refactor"
+  ],
+  "primaryFeature": "logic_function_refactor",
+  "features": {
+    "code-quality-cycle5": {
+      "phase": "archived",
+      "matchRate": 100,
+      "completedAt": "2026-02-07T15:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-02/code-quality-cycle5/",
+      "summary": "24 issues resolved (5 CRITICAL + 12 WARNING + 4 ARCHITECTURE + 3 EXCEPTION), -954 net lines, 25/25 tests passing",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {},
+      "automationLevel": 2
+    },
+    "long_function_refactor": {
+      "phase": "archived",
+      "cycle": 13,
+      "matchRate": 98,
+      "createdAt": "2026-05-19T00:00:00.000Z",
+      "completedAt": "2026-05-19T00:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-05/long_function_refactor/",
+      "summary": "Extracted 5 panel/dialog _init_ui methods (851 LOC) into 30 builder methods; _init_ui total 851->120 LOC, 65/65 tests pass",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {},
+      "automationLevel": 2
+    },
+    "recipe_dialog_dead_code_removal": {
+      "phase": "archived",
+      "cycle": 14,
+      "createdAt": "2026-05-19T00:00:00.000Z",
+      "completedAt": "2026-05-19T00:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-05/recipe_dialog_dead_code_removal/",
+      "summary": "Deleted dead DhrRecipeManagerDialog (-441 LOC); lightweight cycle (Plan + Report)",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {},
+      "automationLevel": 2
+    },
+    "logic_function_refactor": {
+      "phase": "in_progress",
+      "cycle": 15,
+      "createdAt": "2026-05-21T00:00:00.000Z",
+      "summary": "PDCA #15 extended scope. Part A done (deleted dead recipe_manager_dialog.py, -518 LOC). Part B/C pending next session: RecordDetailDialog/RecordViewDialog init_ui refactor, _save_and_export helper extraction, dhr_bulk_generator test boost + refactor.",
+      "nextStep": "Read dhr_bulk_generator.py + record_view_dialog.py fully, then write Design doc, then execute Part B/C",
+      "stateMachine": {
+        "currentState": "in_progress",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {},
+      "automationLevel": 2
+    }
+  },
+  "pipeline": {
+    "currentPhase": 1,
+    "level": "Starter",
+    "phaseHistory": []
+  },
+  "session": {
+    "startedAt": "2026-02-07T12:42:52.784Z",
+    "onboardingCompleted": true,
+    "lastActivity": "2026-05-28T07:09:22.211Z"
+  },
+  "history": [
+    {
+      "feature": "code-quality-cycle5",
+      "action": "archive",
+      "timestamp": "2026-02-07T15:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "long_function_refactor",
+      "action": "plan",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "long_function_refactor",
+      "action": "design",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "long_function_refactor",
+      "action": "do",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "long_function_refactor",
+      "action": "analyze",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "matchRate 98%"
+    },
+    {
+      "feature": "long_function_refactor",
+      "action": "report",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "long_function_refactor",
+      "action": "archive",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "recipe_dialog_dead_code_removal",
+      "action": "plan",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "recipe_dialog_dead_code_removal",
+      "action": "report",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "recipe_dialog_dead_code_removal",
+      "action": "archive",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "logic_function_refactor",
+      "action": "plan",
+      "timestamp": "2026-05-21T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "logic_function_refactor",
+      "action": "do-part-a",
+      "timestamp": "2026-05-21T00:00:00.000Z",
+      "result": "dead file deleted, -518 LOC, 65/65 tests pass"
+    }
+  ],
+  "stateMachine": {
+    "defaultWorkflow": "default",
+    "activeWorkflows": {},
+    "totalTransitions": 0
+  },
+  "automation": {
+    "globalLevel": 2,
+    "trustScore": 38,
+    "pendingApprovals": 0,
+    "lastGateResult": null
+  },
+  "team": {
+    "enabled": true,
+    "stateFile": ".bkit/runtime/agent-state.json",
+    "eventsFile": ".bkit/runtime/agent-events.jsonl"
+  }
+}
