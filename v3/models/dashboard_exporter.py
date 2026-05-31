@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, Side
 
 from config.config_manager import config
@@ -93,6 +94,7 @@ class DashboardExporter:
         )
 
         monthly = self.data_manager.get_monthly_production_stats(months=6)
+        monthly_title_row = row
         row = self._write_section(
             ws, row, "[월별 생산량 (최근 6개월)]",
             ["연월", "생산건수", "총배합량(g)"],
@@ -101,6 +103,8 @@ class DashboardExporter:
                 for r in monthly
             ],
         )
+        if monthly:
+            self._add_monthly_chart(ws, monthly_title_row, len(monthly))
 
         top = self.data_manager.get_top_materials(limit=10, start_date=start_date, end_date=end_date)
         row = self._write_section(
@@ -147,6 +151,28 @@ class DashboardExporter:
                     cell.border = _BORDER
             row += 1
         return row + 1
+
+    def _add_monthly_chart(self, ws: Any, title_row: int, count: int) -> None:
+        """월별 섹션 데이터(C열=총배합량, A열=연월)를 참조하는 막대 차트를 추가한다.
+
+        title_row 기준: header_row=+1, data=+2..+1+count (_write_section 레이아웃).
+        """
+        header_row = title_row + 1
+        data_start = title_row + 2
+        data_end = data_start + count - 1
+
+        chart = BarChart()
+        chart.type = "col"
+        chart.title = "월별 총 배합량(g)"
+        chart.legend = None
+        chart.height = 7
+        chart.width = 14
+
+        data = Reference(ws, min_col=3, min_row=header_row, max_row=data_end)
+        cats = Reference(ws, min_col=1, min_row=data_start, max_row=data_end)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        ws.add_chart(chart, f"F{title_row}")
 
     def _compute_kpis(self) -> Dict:
         """당월 기준 KPI 4종 (대시보드 _refresh_kpis와 동일 로직)."""
