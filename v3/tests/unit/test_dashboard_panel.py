@@ -62,12 +62,14 @@ class FormatAmountTests(unittest.TestCase):
 class DashboardPanelSmokeTests(unittest.TestCase):
     """빈 DB / 정상 DB 모킹 환경에서 refresh 안정성 검증."""
 
-    def _make_mock_dm(self, monthly=None, top=None, workers=None, recipes=None):
+    def _make_mock_dm(self, monthly=None, top=None, workers=None, recipes=None,
+                      low_stock=None):
         dm = MagicMock()
         dm.get_monthly_production_stats.return_value = monthly or []
         dm.get_top_materials.return_value = top or []
         dm.get_worker_stats.return_value = workers or []
         dm.get_recipe_frequency.return_value = recipes or []
+        dm.get_low_stock_materials.return_value = low_stock or []
         return dm
 
     def test_refresh_empty_data_no_exception(self):
@@ -120,6 +122,61 @@ class DashboardPanelSmokeTests(unittest.TestCase):
         start, end = panel._current_date_range()
         self.assertIsNone(start)
         self.assertIsNone(end)
+
+
+class LowStockAlertBannerTests(unittest.TestCase):
+    """재고 부족 알림 배너 표시/숨김 검증 (PDCA #27)."""
+
+    def _make_dm(self, low_stock):
+        dm = MagicMock()
+        for m in ("get_monthly_production_stats", "get_top_materials",
+                  "get_worker_stats", "get_recipe_frequency"):
+            getattr(dm, m).return_value = []
+        dm.get_low_stock_materials.return_value = low_stock
+        return dm
+
+    def test_no_alerts_hides_cards_shows_ok_label(self):
+        panel = DashboardPanel(self._make_dm([]))
+        panel.refresh()
+        # offscreen: isVisible()는 부모 미표시로 항상 False → isHidden()로 명시 상태 검증
+        self.assertTrue(panel.low_stock_container.isHidden())
+        self.assertFalse(panel.low_stock_empty_label.isHidden())
+
+    def test_alerts_show_cards(self):
+        low = [
+            {"material_code": "M1", "material_name": "재료A",
+             "current_stock": 10.0, "threshold": 100.0, "shortage": 90.0, "unit": "g"},
+            {"material_code": "M2", "material_name": "재료B",
+             "current_stock": 0.0, "threshold": 50.0, "shortage": 50.0, "unit": "g"},
+        ]
+        panel = DashboardPanel(self._make_dm(low))
+        panel.refresh()
+        self.assertFalse(panel.low_stock_container.isHidden())
+        self.assertTrue(panel.low_stock_empty_label.isHidden())
+        # 카드 수 = 항목 수 + stretch(1)
+        self.assertEqual(panel.low_stock_layout.count(), len(low) + 1)
+
+    def test_more_label_when_exceeding_max_cards(self):
+        many = [
+            {"material_code": f"M{i}", "material_name": f"재료{i}",
+             "current_stock": 1.0, "threshold": 100.0, "shortage": 99.0, "unit": "g"}
+            for i in range(DashboardPanel._MAX_ALERT_CARDS + 3)
+        ]
+        panel = DashboardPanel(self._make_dm(many))
+        panel.refresh()
+        self.assertFalse(panel.low_stock_more_label.isHidden())
+        self.assertIn("3", panel.low_stock_more_label.text())
+        self.assertEqual(
+            panel.low_stock_layout.count(), DashboardPanel._MAX_ALERT_CARDS + 1
+        )
+
+    def test_refresh_twice_does_not_accumulate_cards(self):
+        low = [{"material_code": "M1", "material_name": "재료A",
+                "current_stock": 10.0, "threshold": 100.0, "shortage": 90.0, "unit": "g"}]
+        panel = DashboardPanel(self._make_dm(low))
+        panel.refresh()
+        panel.refresh()
+        self.assertEqual(panel.low_stock_layout.count(), len(low) + 1)
 
 
 if __name__ == "__main__":
