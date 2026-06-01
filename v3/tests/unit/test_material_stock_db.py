@@ -109,6 +109,56 @@ class MaterialStockDbTests(unittest.TestCase):
         self.assertIn("UNSET", sql_codes)
         self.assertIn("UNSET", pure_codes)
 
+    # ------------------------------------------------------------------
+    # apply_consumption (PDCA #29 — 배합 저장 시 자동 차감)
+    # ------------------------------------------------------------------
+
+    def test_apply_consumption_reduces_existing_stock(self):
+        self.db.upsert_material_stock("M1", "재료A", 100.0, 0.0)
+        updated = self.db.apply_consumption([{"material_code": "M1", "actual_amount": 40.0}])
+        self.assertEqual(updated, 1)
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 60.0)
+
+    def test_apply_consumption_clamps_at_zero(self):
+        self.db.upsert_material_stock("M1", "재료A", 30.0, 0.0)
+        updated = self.db.apply_consumption([{"material_code": "M1", "actual_amount": 50.0}])
+        self.assertEqual(updated, 1)
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 0.0)
+
+    def test_apply_consumption_aggregates_duplicate_codes(self):
+        self.db.upsert_material_stock("M1", "재료A", 100.0, 0.0)
+        updated = self.db.apply_consumption([
+            {"material_code": "M1", "actual_amount": 30.0},
+            {"material_code": "M1", "actual_amount": 20.0},
+        ])
+        self.assertEqual(updated, 1)  # 합산 1회 UPDATE
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 50.0)
+
+    def test_apply_consumption_skips_unknown_material(self):
+        self.db.upsert_material_stock("M1", "재료A", 100.0, 0.0)
+        updated = self.db.apply_consumption([
+            {"material_code": "M1", "actual_amount": 10.0},
+            {"material_code": "GHOST", "actual_amount": 99.0},  # 마스터에 없음 → 미생성
+        ])
+        self.assertEqual(updated, 1)
+        codes = {r["material_code"] for r in self.db.get_all_material_stock()}
+        self.assertEqual(codes, {"M1"})  # GHOST 행 생성 안 됨
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 90.0)
+
+    def test_apply_consumption_skips_nonpositive_and_blank(self):
+        self.db.upsert_material_stock("M1", "재료A", 100.0, 0.0)
+        updated = self.db.apply_consumption([
+            {"material_code": "M1", "actual_amount": 0.0},
+            {"material_code": "M1", "actual_amount": -5.0},
+            {"material_code": "", "actual_amount": 10.0},
+        ])
+        self.assertEqual(updated, 0)
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 100.0)
+
+    def test_apply_consumption_empty_returns_zero(self):
+        self.assertEqual(self.db.apply_consumption([]), 0)
+        self.assertEqual(self.db.apply_consumption(None), 0)
+
     def test_seed_from_history_inserts_used_materials(self):
         record = {
             "product_lot": "L1", "recipe_name": "R1", "worker": "W1",

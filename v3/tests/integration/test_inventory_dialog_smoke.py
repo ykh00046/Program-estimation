@@ -82,6 +82,27 @@ class StockSettingsDialogSmokeTests(unittest.TestCase):
         dlg = StockSettingsDialog(_make_dm([]))
         self.assertEqual(dlg.table.rowCount(), 0)
 
+    def test_auto_deduct_checkbox_reflects_setting(self):
+        # PDCA #29: 체크박스가 get_auto_deduct_on_save 값을 반영
+        dm = _make_dm(_SAMPLE)
+        dm.get_auto_deduct_on_save.return_value = False
+        dlg = StockSettingsDialog(dm)
+        self.assertFalse(dlg.auto_deduct_check.isChecked())
+        dm2 = _make_dm(_SAMPLE)
+        dm2.get_auto_deduct_on_save.return_value = True
+        dlg2 = StockSettingsDialog(dm2)
+        self.assertTrue(dlg2.auto_deduct_check.isChecked())
+
+    def test_save_persists_auto_deduct_toggle(self):
+        # PDCA #29: 저장 시 set_auto_deduct_on_save 호출
+        dm = _make_dm(_SAMPLE)
+        dm.get_auto_deduct_on_save.return_value = True
+        dlg = StockSettingsDialog(dm)
+        dlg.auto_deduct_check.setChecked(False)
+        with patch("ui.dialogs.stock_settings_dialog.QMessageBox"):
+            dlg._on_save()
+        dm.set_auto_deduct_on_save.assert_called_once_with(False)
+
 
 if __name__ == "__main__":
     unittest.main()
