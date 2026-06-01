@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QWidget,
+    QCheckBox,
 )
 from PySide6.QtGui import QDoubleValidator
 
@@ -54,6 +55,10 @@ class StockSettingsDialog(QDialog):
         layout.addWidget(title)
 
         layout.addWidget(self._build_default_threshold_row())
+
+        self.auto_deduct_check = QCheckBox("배합 저장 시 재고 자동 차감")
+        self.auto_deduct_check.setStyleSheet(f"color: {UITheme.TEXT_SECONDARY}; font-size: 12px;")
+        layout.addWidget(self.auto_deduct_check)
 
         hint = QLabel(
             "임계값이 0인 자재는 전역 기본 임계값을 적용합니다. "
@@ -134,6 +139,8 @@ class StockSettingsDialog(QDialog):
             rows = []
             default_threshold = 0.0
         self.default_threshold_edit.setText(self._fmt_num(default_threshold))
+        auto_deduct = getattr(self.data_manager, "get_auto_deduct_on_save", lambda: True)()
+        self.auto_deduct_check.setChecked(bool(auto_deduct))
         self._fill_table(rows)
 
     def _fill_table(self, rows: List[Dict]) -> None:
@@ -168,6 +175,9 @@ class StockSettingsDialog(QDialog):
             self.data_manager.set_default_min_threshold(
                 self._parse_num(self.default_threshold_edit.text())
             )
+            setter = getattr(self.data_manager, "set_auto_deduct_on_save", None)
+            if callable(setter):
+                setter(self.auto_deduct_check.isChecked())
             saved = 0
             for r in range(self.table.rowCount()):
                 code = self._cell_text(r, _COL_CODE)

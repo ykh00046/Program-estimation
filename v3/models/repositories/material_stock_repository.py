@@ -84,6 +84,48 @@ class MaterialStockRepository(SqliteManagerBase):
             conn.commit()
         return True
 
+    @handle_exceptions(user_message="자재 재고 차감 중 오류가 발생했습니다.", default_return=0)
+    def apply_consumption(self, consumption: List[Dict]) -> int:
+        """배합 사용량만큼 기존 재고를 차감한다(현재고는 0 미만으로 내려가지 않음).
+
+        Args:
+            consumption: ``[{"material_code": str, "actual_amount": float}, ...]``
+
+        동작:
+            - material_code 기준으로 사용량을 합산한다.
+            - 비양수 사용량·빈 코드는 건너뛴다.
+            - 단일 트랜잭션에서 기존 행만 ``current_stock = max(0, current_stock - amt)``
+              로 UPDATE 한다. 마스터에 없는 자재는 생성하지 않는다(UPDATE rowcount 0).
+
+        Returns:
+            실제 차감(갱신)된 자재 수.
+        """
+        totals: Dict[str, float] = {}
+        for item in consumption or []:
+            code = str(item.get("material_code") or "").strip()
+            try:
+                amount = float(item.get("actual_amount") or 0.0)
+            except (TypeError, ValueError):
+                amount = 0.0
+            if not code or amount <= 0:
+                continue
+            totals[code] = totals.get(code, 0.0) + amount
+        if not totals:
+            return 0
+        updated = 0
+        with self.get_connection() as conn:
+            for code, amount in totals.items():
+                cursor = conn.execute(
+                    "UPDATE material_stock "
+                    "SET current_stock = MAX(0, current_stock - ?), updated_at = CURRENT_TIMESTAMP "
+                    "WHERE material_code = ?",
+                    [amount, code],
+                )
+                updated += cursor.rowcount or 0
+            conn.commit()
+        logger.debug(f"재고 자동 차감: {updated}건 갱신 (요청 {len(totals)}종)")
+        return updated
+
     @handle_exceptions(user_message="자재 재고 초기화 중 오류가 발생했습니다.", default_return=0)
     def seed_material_stock_from_history(self) -> int:
         """배합 이력(mixing_details)의 자재를 재고 마스터에 없으면 0/0으로 시드.

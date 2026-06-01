@@ -259,6 +259,9 @@ class MixingDatabaseManager(SqliteManagerBase):
     def seed_material_stock_from_history(self) -> int:
         return self._stock.seed_material_stock_from_history()
 
+    def apply_consumption(self, consumption: List[Dict]) -> int:
+        return self._stock.apply_consumption(consumption)
+
     # ==================================================================
     # 인프라 (Facade 직접 보유)
     # ==================================================================

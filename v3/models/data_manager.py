@@ -191,6 +191,7 @@ class DataManager:
             self.db_manager.save_mixing_record(record_data, details_data)
             product_lot = record_data['product_lot']
             self._backup_to_google_sheets(record_data, details_data)
+            self._deduct_inventory(details_data)
             logger.info(f"배합 저장: LOT {product_lot}")
 
             # 3. Export disabled (use record view)
@@ -200,6 +201,28 @@ class DataManager:
         except Exception as e:
             logger.critical(f"배합 기록 저장 실패: {e}", exc_info=True)
             raise
+
+    def _deduct_inventory(self, details: List[Dict]) -> None:
+        """배합 저장 후 자재 재고를 자동 차감한다(설정 on일 때, best-effort).
+
+        차감 실패는 생산 기록 저장을 롤백시키지 않는다(생산 기록이 1순위 진실).
+        """
+        if not self.get_auto_deduct_on_save():
+            return
+        try:
+            consumption = [
+                {
+                    "material_code": (str(d.get("material_code") or "").strip()
+                                      or str(d.get("material_name") or "").strip()),
+                    "actual_amount": d.get("actual_amount", 0.0),
+                }
+                for d in (details or [])
+            ]
+            updated = self.db_manager.apply_consumption(consumption)
+            if updated:
+                logger.info(f"재고 자동 차감 완료: {updated}건")
+        except Exception as e:  # noqa: BLE001 — 차감 실패가 저장을 막지 않음
+            logger.warning(f"재고 자동 차감 실패(저장은 정상): {e}")
 
     def _generate_report_files(self, export_data: Dict, worker_name: str,
                                signature_cfg: Dict, effects_params: Optional[Dict],
@@ -507,6 +530,14 @@ class DataManager:
         except (TypeError, ValueError):
             amount = 0.0
         return config.set_value("inventory_alert.default_min_threshold", amount)
+
+    def get_auto_deduct_on_save(self) -> bool:
+        """배합 저장 시 재고 자동 차감 여부(기본 True)."""
+        return bool(config.get("inventory_alert.auto_deduct_on_save", True))
+
+    def set_auto_deduct_on_save(self, enabled: bool) -> bool:
+        """배합 저장 시 재고 자동 차감 여부를 설정에 저장."""
+        return config.set_value("inventory_alert.auto_deduct_on_save", bool(enabled))
 
     def get_low_stock_materials(self, default_threshold: Optional[float] = None) -> List[Dict]:
         """현재고가 (자재별 또는 전역 기본) 임계값 이하인 자재 목록.
