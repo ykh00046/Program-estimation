@@ -112,6 +112,16 @@ class StockSettingsDialog(QDialog):
         self.reseed_btn.clicked.connect(self._on_reseed)
         row.addWidget(self.reseed_btn)
 
+        self.inbound_btn = QPushButton("입고 등록")
+        self.inbound_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.inbound_btn.clicked.connect(self._open_inbound)
+        row.addWidget(self.inbound_btn)
+
+        self.history_btn = QPushButton("입출고 이력")
+        self.history_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.history_btn.clicked.connect(self._open_history)
+        row.addWidget(self.history_btn)
+
         row.addStretch(1)
 
         self.cancel_btn = QPushButton("취소")
@@ -169,6 +179,27 @@ class StockSettingsDialog(QDialog):
             return
         self._fill_table(rows)
         QMessageBox.information(self, "새로고침 완료", f"신규 {inserted}건이 추가되었습니다.")
+
+    def _open_inbound(self) -> None:
+        """입고 등록 다이얼로그를 열고, 등록 성공 시 재고 테이블을 갱신한다."""
+        from ui.dialogs.inbound_dialog import InboundDialog
+        dialog = InboundDialog(self.data_manager, self)
+        if dialog.exec():
+            self._reload_after_change()
+
+    def _open_history(self) -> None:
+        """입출고 이력 다이얼로그를 연다(읽기 전용)."""
+        from ui.dialogs.stock_history_dialog import StockHistoryDialog
+        StockHistoryDialog(self.data_manager, self).exec()
+
+    def _reload_after_change(self) -> None:
+        """입고 등록 등으로 재고가 변경된 뒤 테이블을 재조회한다(seed 미호출)."""
+        try:
+            rows = self.data_manager.get_all_material_stock()
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"재고 테이블 갱신 실패: {e}", exc_info=True)
+            return
+        self._fill_table(rows)
 
     def _on_save(self) -> None:
         try:

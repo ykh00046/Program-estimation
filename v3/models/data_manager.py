@@ -507,6 +507,15 @@ class DataManager:
         """배합 이력의 자재를 재고 마스터에 0/0으로 시드. 신규 삽입 건수 반환."""
         return self.db_manager.seed_material_stock_from_history()
 
+    def add_inbound(self, material_code: str, material_name: str, quantity: float,
+                    unit: str = "g", note: str = "") -> bool:
+        """입고(매입) 등록: 기존 재고에 수량을 누적 가산하고 이동 이력을 기록 (PDCA #30)."""
+        return self.db_manager.add_inbound(material_code, material_name, quantity, unit, note)
+
+    def get_stock_history(self, material_code: Optional[str] = None, limit: int = 200) -> List[Dict]:
+        """자재 입출고 이력(최신순) 조회. material_code 지정 시 해당 자재만 (PDCA #30)."""
+        return self.db_manager.get_stock_history(material_code, limit)
+
     def get_inventory_alerts(self) -> List[MaterialAlert]:
         """현재 재고 기준 임계값 경고 목록(부족분 큰 순).
 

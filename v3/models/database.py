@@ -134,8 +134,25 @@ class MixingDatabaseManager(SqliteManagerBase):
                 )
             """)
 
+            # 자재 입출고 이력 테이블 (PDCA #30 inventory_inbound_history, append-only)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS material_stock_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    material_code TEXT NOT NULL,
+                    material_name TEXT NOT NULL DEFAULT '',
+                    change_type TEXT NOT NULL,
+                    quantity REAL NOT NULL,
+                    stock_after REAL NOT NULL DEFAULT 0,
+                    unit TEXT NOT NULL DEFAULT 'g',
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # 인덱스 생성
             conn.execute("CREATE INDEX IF NOT EXISTS idx_material_stock_code ON material_stock(material_code)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_history_code ON material_stock_history(material_code)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_history_created ON material_stock_history(created_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_mixing_records_date ON mixing_records(work_date)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_mixing_records_lot ON mixing_records(product_lot)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_name ON recipes(recipe_name)")
@@ -261,6 +278,13 @@ class MixingDatabaseManager(SqliteManagerBase):
 
     def apply_consumption(self, consumption: List[Dict]) -> int:
         return self._stock.apply_consumption(consumption)
+
+    def add_inbound(self, material_code: str, material_name: str, quantity: float,
+                    unit: str = "g", note: str = "") -> bool:
+        return self._stock.add_inbound(material_code, material_name, quantity, unit, note)
+
+    def get_stock_history(self, material_code: Optional[str] = None, limit: int = 200) -> List[Dict]:
+        return self._stock.get_stock_history(material_code, limit)
 
     # ==================================================================
     # 인프라 (Facade 직접 보유)

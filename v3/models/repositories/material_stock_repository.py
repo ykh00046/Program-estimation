@@ -4,15 +4,20 @@
 원본 기능: PDCA `material-stock-threshold-alert`.
 SQL·로그·반환 구조는 분리 이전과 비트-동일하게 유지된다(무동작 변경 리팩토링).
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from utils.logger import logger
 from utils.error_handler import handle_exceptions
 from models._sqlite_base import SqliteManagerBase
 
+# 재고 이동 유형 (material_stock_history.change_type) — PDCA #30
+MOVE_INBOUND = "INBOUND"   # 입고/매입 (+)
+MOVE_CONSUME = "CONSUME"   # 배합 자동 차감 (-)
+MOVE_ADJUST = "ADJUST"     # 수동 조정 (예약, 현재 미사용)
+
 
 class MaterialStockRepository(SqliteManagerBase):
-    """`material_stock` 테이블 전용 Repository."""
+    """`material_stock`(현재 상태) + `material_stock_history`(이동 로그) 전용 Repository."""
 
     @handle_exceptions(user_message="자재 재고 조회 중 오류가 발생했습니다.", default_return=[])
     def get_all_material_stock(self) -> List[Dict]:
@@ -121,10 +126,104 @@ class MaterialStockRepository(SqliteManagerBase):
                     "WHERE material_code = ?",
                     [amount, code],
                 )
-                updated += cursor.rowcount or 0
+                if cursor.rowcount:
+                    updated += cursor.rowcount
+                    # 차감과 동일 트랜잭션에서 CONSUME 이력 기록 (PDCA #30, 부호 -)
+                    after = conn.execute(
+                        "SELECT current_stock, material_name, unit FROM material_stock WHERE material_code = ?",
+                        [code],
+                    ).fetchone()
+                    stock_after = float(after["current_stock"]) if after else 0.0
+                    name = after["material_name"] if after else code
+                    unit = after["unit"] if after else "g"
+                    self._insert_history(
+                        conn, code, name, MOVE_CONSUME, -amount, stock_after, unit, "배합 자동 차감"
+                    )
             conn.commit()
         logger.debug(f"재고 자동 차감: {updated}건 갱신 (요청 {len(totals)}종)")
         return updated
+
+    # ------------------------------------------------------------------
+    # 입고 / 이동 이력 (PDCA #30 inventory_inbound_history)
+    # ------------------------------------------------------------------
+
+    @handle_exceptions(user_message="입고 등록 중 오류가 발생했습니다.", default_return=False)
+    def add_inbound(self, material_code: str, material_name: str, quantity: float,
+                    unit: str = "g", note: str = "") -> bool:
+        """입고(매입): 기존 재고에 ``quantity``를 더한다(마스터에 없으면 신규 생성).
+
+        ``upsert_material_stock``(절대값 설정)과 달리 **누적 가산**한다.
+        이동 이력(INBOUND, +quantity, stock_after)을 동일 트랜잭션에 기록한다.
+        Returns: 성공 시 True, 코드 공백/비양수 수량이면 False.
+        """
+        code = (material_code or material_name or "").strip()
+        if not code:
+            logger.warning("입고 등록 실패: material_code/이름이 비어 있음")
+            return False
+        try:
+            qty = float(quantity or 0.0)
+        except (TypeError, ValueError):
+            qty = 0.0
+        if qty <= 0:
+            logger.warning(f"입고 등록 실패: 수량이 비양수임 (code={code}, qty={qty})")
+            return False
+        name = (material_name or code)
+        unit = (unit or "g")
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO material_stock
+                    (material_code, material_name, current_stock, min_stock_threshold, unit, updated_at)
+                VALUES (?, ?, ?, 0, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(material_code) DO UPDATE SET
+                    material_name = excluded.material_name,
+                    current_stock = current_stock + excluded.current_stock,
+                    unit = excluded.unit,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                [code, name, qty, unit],
+            )
+            after = conn.execute(
+                "SELECT current_stock FROM material_stock WHERE material_code = ?", [code]
+            ).fetchone()
+            stock_after = float(after["current_stock"]) if after else qty
+            self._insert_history(conn, code, name, MOVE_INBOUND, qty, stock_after, unit, note or "")
+            conn.commit()
+        logger.info(f"입고 등록: {code} +{qty}{unit} → 재고 {stock_after}{unit}")
+        return True
+
+    @handle_exceptions(user_message="입출고 이력 조회 중 오류가 발생했습니다.", default_return=[])
+    def get_stock_history(self, material_code: Optional[str] = None, limit: int = 200) -> List[Dict]:
+        """재고 이동 이력을 최신순으로 조회한다. ``material_code`` 지정 시 해당 자재만."""
+        query = (
+            "SELECT material_code, material_name, change_type, quantity, "
+            "       stock_after, unit, note, created_at "
+            "FROM material_stock_history "
+        )
+        params: List = []
+        code = (material_code or "").strip()
+        if code:
+            query += "WHERE material_code = ? "
+            params.append(code)
+        query += "ORDER BY created_at DESC, id DESC LIMIT ?"
+        params.append(int(limit) if limit else 200)
+        with self.get_connection() as conn:
+            cursor = conn.execute(query, params)
+            rows = [dict(row) for row in cursor.fetchall()]
+        logger.debug(f"입출고 이력 조회: {len(rows)}건 (자재={code or '전체'})")
+        return rows
+
+    @staticmethod
+    def _insert_history(conn, material_code: str, material_name: str, change_type: str,
+                        quantity: float, stock_after: float, unit: str, note: str) -> None:
+        """이동 이력 1건 INSERT (커밋은 호출자 책임)."""
+        conn.execute(
+            "INSERT INTO material_stock_history "
+            "(material_code, material_name, change_type, quantity, stock_after, unit, note) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [material_code, material_name or material_code, change_type,
+             float(quantity), float(stock_after), unit or "g", note or ""],
+        )
 
     @handle_exceptions(user_message="자재 재고 초기화 중 오류가 발생했습니다.", default_return=0)
     def seed_material_stock_from_history(self) -> int:
@@ -153,4 +252,4 @@ class MaterialStockRepository(SqliteManagerBase):
         return inserted
 
 
-__all__ = ["MaterialStockRepository"]
+__all__ = ["MaterialStockRepository", "MOVE_INBOUND", "MOVE_CONSUME", "MOVE_ADJUST"]

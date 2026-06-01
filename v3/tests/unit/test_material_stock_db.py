@@ -175,5 +175,100 @@ class MaterialStockDbTests(unittest.TestCase):
         self.assertEqual(self.db.seed_material_stock_from_history(), 0)
 
 
+class StockInboundHistoryTests(unittest.TestCase):
+    """입고 등록 + 입출고 이력 추적 단위 테스트 (PDCA #30)."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self._legacy_patch = patch(
+            "models.database.LEGACY_DB_PATH",
+            os.path.join(self.tmpdir.name, "__nonexistent_legacy.db"),
+        )
+        self._legacy_patch.start()
+        db_path = os.path.join(self.tmpdir.name, "test_mixing.db")
+        self.db = MixingDatabaseManager(db_path=db_path)
+
+    def tearDown(self):
+        self._legacy_patch.stop()
+        self.tmpdir.cleanup()
+
+    # ── 입고 등록 ──
+    def test_inbound_creates_new_material(self):
+        ok = self.db.add_inbound("M1", "재료A", 50.0, "g", "첫 입고")
+        self.assertTrue(ok)
+        rows = self.db.get_all_material_stock()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["current_stock"], 50.0)
+        hist = self.db.get_stock_history()
+        self.assertEqual(len(hist), 1)
+        self.assertEqual(hist[0]["change_type"], "INBOUND")
+        self.assertEqual(hist[0]["quantity"], 50.0)
+        self.assertEqual(hist[0]["stock_after"], 50.0)
+        self.assertEqual(hist[0]["note"], "첫 입고")
+
+    def test_inbound_accumulates_existing_stock(self):
+        self.db.upsert_material_stock("M1", "재료A", 30.0, 0.0)
+        ok = self.db.add_inbound("M1", "재료A", 20.0)
+        self.assertTrue(ok)
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 50.0)
+        hist = self.db.get_stock_history("M1")
+        self.assertEqual(hist[0]["stock_after"], 50.0)
+        self.assertEqual(hist[0]["quantity"], 20.0)
+
+    def test_inbound_rejects_nonpositive_quantity(self):
+        self.assertFalse(self.db.add_inbound("M1", "재료A", 0.0))
+        self.assertFalse(self.db.add_inbound("M1", "재료A", -5.0))
+        self.assertEqual(self.db.get_all_material_stock(), [])
+        self.assertEqual(self.db.get_stock_history(), [])
+
+    def test_inbound_rejects_blank_code(self):
+        self.assertFalse(self.db.add_inbound("", "", 10.0))
+        self.assertEqual(self.db.get_stock_history(), [])
+
+    # ── 입출고 이력 ──
+    def test_history_orders_newest_first_and_filters(self):
+        self.db.add_inbound("M1", "재료A", 10.0)
+        self.db.add_inbound("M2", "재료B", 20.0)
+        self.db.add_inbound("M1", "재료A", 5.0)
+        all_hist = self.db.get_stock_history()
+        self.assertEqual(len(all_hist), 3)
+        # 자재 필터
+        m1 = self.db.get_stock_history("M1")
+        self.assertEqual(len(m1), 2)
+        self.assertTrue(all(h["material_code"] == "M1" for h in m1))
+
+    def test_history_respects_limit(self):
+        for _ in range(5):
+            self.db.add_inbound("M1", "재료A", 1.0)
+        self.assertEqual(len(self.db.get_stock_history(limit=3)), 3)
+
+    # ── 차감 이력 (apply_consumption 연동) ──
+    def test_consumption_records_negative_history(self):
+        self.db.upsert_material_stock("M1", "재료A", 100.0, 0.0)
+        updated = self.db.apply_consumption([{"material_code": "M1", "actual_amount": 40.0}])
+        self.assertEqual(updated, 1)  # 반환 계약 불변 (#29)
+        hist = self.db.get_stock_history("M1")
+        self.assertEqual(len(hist), 1)
+        self.assertEqual(hist[0]["change_type"], "CONSUME")
+        self.assertEqual(hist[0]["quantity"], -40.0)
+        self.assertEqual(hist[0]["stock_after"], 60.0)
+
+    def test_consumption_unknown_material_records_no_history(self):
+        self.db.upsert_material_stock("M1", "재료A", 100.0, 0.0)
+        self.db.apply_consumption([
+            {"material_code": "M1", "actual_amount": 10.0},
+            {"material_code": "GHOST", "actual_amount": 99.0},
+        ])
+        codes = {h["material_code"] for h in self.db.get_stock_history()}
+        self.assertEqual(codes, {"M1"})  # GHOST 이력 없음
+
+    def test_inbound_then_consume_history_sequence(self):
+        self.db.add_inbound("M1", "재료A", 100.0)
+        self.db.apply_consumption([{"material_code": "M1", "actual_amount": 30.0}])
+        hist = self.db.get_stock_history("M1")
+        self.assertEqual([h["change_type"] for h in hist], ["CONSUME", "INBOUND"])
+        self.assertEqual(self.db.get_all_material_stock()[0]["current_stock"], 70.0)
+
+
 if __name__ == "__main__":
     unittest.main()
