@@ -1,7 +1,13 @@
-"""배합 기록(`mixing_records.db`) 전용 데이터베이스 매니저.
+"""배합 기록(`mixing_records.db`) 전용 데이터베이스 매니저 (Facade).
 
-이 모듈은 일반 배합 작업의 `mixing_records` / `mixing_details` / `recipes` 테이블만 다룬다.
+이 모듈은 일반 배합 작업의 `mixing_records` / `mixing_details` / `recipes` /
+`material_stock` 테이블만 다룬다.
 DHR(Device History Record) 데이터는 `models.dhr_database.DhrDatabaseManager`를 사용하라.
+
+PDCA #28에서 도메인별 4개 Repository(`models.repositories`)로 분해되었다.
+`MixingDatabaseManager`는 공개 진입점을 보존하는 **Facade**로, 테이블 생성/마이그
+레이션 같은 인프라만 직접 보유하고 도메인 메서드는 각 Repository에 위임한다.
+공개 API(클래스명·시그니처·반환값·로그)는 분해 이전과 비트-동일하다(무동작 변경).
 
 공통 인프라(`get_connection`, `_ensure_database_exists`)는 `models._sqlite_base.SqliteManagerBase`에 위치한다.
 """
@@ -14,11 +20,22 @@ from config.settings import DB_FILE, LEGACY_DB_PATH, USER_DATA_DIR
 from utils.logger import logger
 from utils.error_handler import handle_exceptions
 from models._sqlite_base import SqliteManagerBase
-from models.lot_utils import next_lot
+from models.repositories import (
+    MixingRecordRepository,
+    RecipeRepository,
+    StatisticsRepository,
+    MaterialStockRepository,
+)
 
 
 class MixingDatabaseManager(SqliteManagerBase):
-    """`mixing_records.db`만 다루는 매니저 (일반 배합 기록 + 레거시 레시피)."""
+    """`mixing_records.db`만 다루는 Facade (일반 배합 기록 + 레시피 + 재고).
+
+    테이블 생성/레거시 마이그레이션/백업 등 인프라는 직접 보유하고, 도메인
+    메서드는 동일 `db_path`를 가리키는 4개 Repository에 위임한다. 각 Repository는
+    `SqliteManagerBase.get_connection()`이 호출 시점마다 연결을 열고 닫는 단발성
+    컨텍스트라 공유 상태가 없어 같은 파일을 가리켜도 충돌하지 않는다.
+    """
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -26,6 +43,11 @@ class MixingDatabaseManager(SqliteManagerBase):
         super().__init__(db_path, log_prefix="데이터베이스")
         self._migrate_legacy_db()
         self._create_tables()
+        # 동일 db_path를 가리키는 도메인 Repository 구성 (테이블은 위에서 이미 보장)
+        self._records = MixingRecordRepository(self.db_path)
+        self._recipes = RecipeRepository(self.db_path)
+        self._stats = StatisticsRepository(self.db_path)
+        self._stock = MaterialStockRepository(self.db_path)
         logger.info(f"데이터베이스 초기화 완료: {self.db_path}")
 
     def _migrate_legacy_db(self):
@@ -64,7 +86,7 @@ class MixingDatabaseManager(SqliteManagerBase):
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # 배합 상세 기록 테이블
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS mixing_details (
@@ -81,7 +103,7 @@ class MixingDatabaseManager(SqliteManagerBase):
                     FOREIGN KEY (mixing_record_id) REFERENCES mixing_records (id)
                 )
             """)
-            
+
             # 레시피 테이블
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS recipes (
@@ -97,7 +119,7 @@ class MixingDatabaseManager(SqliteManagerBase):
                     UNIQUE(recipe_name, material_code)
                 )
             """)
-            
+
             # 자재 재고 마스터 테이블 (PDCA: material-stock-threshold-alert)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS material_stock (
@@ -145,212 +167,102 @@ class MixingDatabaseManager(SqliteManagerBase):
                 )
             else:
                 logger.warning("mixing product_lot unique index creation skipped due to duplicates")
-    
-    @handle_exceptions(user_message="배합 기록 저장 중 오류가 발생했습니다.")
+
+    # ==================================================================
+    # 도메인 위임 (Facade) — 공개 API는 분해 이전과 비트-동일
+    # ==================================================================
+
+    # ── 배합 기록 (MixingRecordRepository) ──
     def save_mixing_record(self, record_data: Dict, details: List[Dict]) -> int:
-        """
-        배합 기록을 저장합니다.
+        return self._records.save_mixing_record(record_data, details)
 
-        Args:
-            record_data: 기본 배합 정보
-            details: 상세 배합 정보 리스트
-
-        Returns:
-            저장된 레코드의 ID
-        """
-        with self.get_connection() as conn:
-            record_data["product_lot"] = self._resolve_unique_product_lot(conn, record_data)
-            record_id = self._insert_mixing_record_row(conn, record_data)
-            self._insert_mixing_detail_rows(conn, record_id, details)
-            conn.commit()
-            self._log_record_saved(record_data, record_id)
-        return record_id
-
-    def _generate_product_lot_with_conn(self, conn, recipe_name: str, work_date: str) -> str:
-        """동일 connection 안에서 다음 시퀀스의 제품 LOT을 생성한다."""
-        target_date = datetime.strptime(work_date, "%Y-%m-%d")
-        date_str = target_date.strftime("%y%m%d")
-        base_lot = f"{recipe_name}{date_str}"
-        cursor = conn.execute(
-            "SELECT product_lot FROM mixing_records WHERE work_date = ? AND recipe_name = ?",
-            (work_date, recipe_name),
-        )
-        return next_lot(base_lot, (row["product_lot"] for row in cursor.fetchall()))
-
-    def _resolve_unique_product_lot(self, conn, record_data: Dict) -> str:
-        """요청된 LOT이 비었거나 이미 존재하면 동일 트랜잭션 안에서 유일 LOT을 재생성한다."""
-        requested_lot = str(record_data.get("product_lot", "")).strip()
-        if requested_lot:
-            cursor = conn.execute(
-                "SELECT 1 FROM mixing_records WHERE product_lot = ? LIMIT 1",
-                (requested_lot,),
-            )
-            if cursor.fetchone() is None:
-                return requested_lot
-            logger.warning(f"Duplicate mixing product_lot detected; regenerating ({requested_lot})")
-
-        recipe_name = str(record_data.get("recipe_name", "")).strip()
-        work_date = str(record_data.get("work_date", "")).strip()
-        if not recipe_name or not work_date:
-            raise ValueError("recipe_name and work_date are required to generate a unique product LOT")
-        return self._generate_product_lot_with_conn(conn, recipe_name, work_date)
-
-    def _insert_mixing_record_row(self, conn, record_data: Dict) -> int:
-        """mixing_records 행 1건을 삽입하고 lastrowid를 반환한다."""
-        cursor = conn.execute("""
-            INSERT INTO mixing_records
-            (product_lot, recipe_name, worker, work_date, work_time, total_amount, scale)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            record_data['product_lot'],
-            record_data['recipe_name'],
-            record_data['worker'],
-            record_data['work_date'],
-            record_data['work_time'],
-            record_data['total_amount'],
-            record_data['scale'],
-        ))
-        return cursor.lastrowid
-
-    def _insert_mixing_detail_rows(self, conn, record_id: int, details: List[Dict]) -> None:
-        """mixing_details 행 N건을 sequence_order와 함께 삽입한다."""
-        for i, detail in enumerate(details):
-            conn.execute("""
-                INSERT INTO mixing_details
-                (mixing_record_id, material_code, material_name, material_lot,
-                 ratio, theory_amount, actual_amount, sequence_order)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                record_id,
-                detail['material_code'],
-                detail['material_name'],
-                detail['material_lot'],
-                detail['ratio'],
-                detail['theory_amount'],
-                detail['actual_amount'],
-                i + 1,
-            ))
-
-    def _log_record_saved(self, record_data: Dict, record_id: int) -> None:
-        """저장 완료 이벤트를 운영 로그에 남긴다."""
-        logger.log_mixing_operation(
-            "기록저장",
-            record_data['recipe_name'],
-            record_data['worker'],
-            product_lot=record_data['product_lot'],
-            record_id=record_id,
-        )
-    
-    @handle_exceptions(user_message="배합 기록 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_mixing_records(self, 
+    def get_mixing_records(self,
                           start_date: Optional[str] = None,
                           end_date: Optional[str] = None,
                           worker: Optional[str] = None,
                           recipe_name: Optional[str] = None,
                           limit: int = 100) -> List[Dict]:
-        """
-        배합 기록을 조회합니다.
-        
-        Args:
-            start_date: 시작 날짜 (YYYY-MM-DD)
-            end_date: 종료 날짜 (YYYY-MM-DD)
-            worker: 작업자명
-            recipe_name: 레시피명
-            limit: 최대 조회 건수
-        
-        Returns:
-            배합 기록 리스트
-        """
-        with self.get_connection() as conn:
-            query = "SELECT * FROM mixing_records WHERE 1=1"
-            params = []
+        return self._records.get_mixing_records(start_date, end_date, worker, recipe_name, limit)
 
-            query = self._append_date_range(query, params, start_date, end_date)
-
-            if worker:
-                query += " AND worker = ?"
-                params.append(worker)
-            
-            if recipe_name:
-                query += " AND recipe_name = ?"
-                params.append(recipe_name)
-            
-            query += " ORDER BY created_at DESC LIMIT ?"
-            params.append(limit)
-            
-            cursor = conn.execute(query, params)
-            records = [dict(row) for row in cursor.fetchall()]
-            
-            logger.debug(f"배합 기록 조회: {len(records)}건")
-            return records
-    
-    @handle_exceptions(user_message="배합 상세 정보 조회 중 오류가 발생했습니다.", default_return=[])
     def get_mixing_details(self, mixing_record_id: int) -> List[Dict]:
-        """특정 배합 기록의 상세 정보를 조회합니다."""
-        with self.get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT * FROM mixing_details 
-                WHERE mixing_record_id = ? 
-                ORDER BY sequence_order
-            """, (mixing_record_id,))
-            
-            details = [dict(row) for row in cursor.fetchall()]
-            logger.debug(f"배합 상세 조회: 레코드ID {mixing_record_id}, {len(details)}건")
-            return details
-    
-    @handle_exceptions(user_message="레시피 저장 중 오류가 발생했습니다.")
+        return self._records.get_mixing_details(mixing_record_id)
+
+    def delete_mixing_record(self, record_id: int) -> bool:
+        return self._records.delete_mixing_record(record_id)
+
+    def get_mixing_record_by_lot(self, product_lot: str) -> Optional[Dict]:
+        return self._records.get_mixing_record_by_lot(product_lot)
+
+    def update_mixing_record(self, record_id: int, worker: str, total_amount: float) -> bool:
+        return self._records.update_mixing_record(record_id, worker, total_amount)
+
+    def update_mixing_detail(self, record_id: int, material_code: str,
+                              material_lot: str, ratio: float,
+                              theory_amount: float, actual_amount: float) -> bool:
+        return self._records.update_mixing_detail(
+            record_id, material_code, material_lot, ratio, theory_amount, actual_amount
+        )
+
+    def update_mixing_record_with_details(self, record_id: int, worker: str,
+                                          total_amount: float, materials: List[Dict]) -> bool:
+        return self._records.update_mixing_record_with_details(record_id, worker, total_amount, materials)
+
+    def get_all_records_with_details(self, limit: int = 10000) -> List[Dict]:
+        return self._records.get_all_records_with_details(limit)
+
+    def get_all_material_names(self) -> List[str]:
+        return self._records.get_all_material_names()
+
+    # ── 레시피 (RecipeRepository) ──
     def save_recipe(self, recipe_name: str, materials: List[Dict]):
-        """레시피를 데이터베이스에 저장합니다."""
-        with self.get_connection() as conn:
-            # 기존 레시피 비활성화
-            conn.execute("""
-                UPDATE recipes SET is_active = 0, updated_at = CURRENT_TIMESTAMP
-                WHERE recipe_name = ?
-            """, (recipe_name,))
-            
-            # 새 레시피 저장
-            for i, material in enumerate(materials):
-                conn.execute("""
-                    INSERT OR REPLACE INTO recipes 
-                    (recipe_name, material_code, material_name, ratio, sequence_order)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (
-                    recipe_name,
-                    material['품목코드'],
-                    material['품목명'],
-                    material['배합비율'],
-                    i + 1
-                ))
-            
-            conn.commit()
-            logger.info(f"레시피 저장 완료: {recipe_name}, {len(materials)}개 재료")
-    
-    @handle_exceptions(user_message="레시피 조회 중 오류가 발생했습니다.", default_return={})
+        return self._recipes.save_recipe(recipe_name, materials)
+
     def get_recipes(self) -> Dict[str, List[Dict]]:
-        """활성화된 모든 레시피를 조회합니다."""
-        with self.get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT recipe_name, material_code, material_name, ratio, sequence_order
-                FROM recipes 
-                WHERE is_active = 1 
-                ORDER BY recipe_name, sequence_order
-            """)
-            
-            recipes = {}
-            for row in cursor.fetchall():
-                recipe_name = row['recipe_name']
-                if recipe_name not in recipes:
-                    recipes[recipe_name] = []
-                
-                recipes[recipe_name].append({
-                    '품목코드': row['material_code'],
-                    '품목명': row['material_name'],
-                    '배합비율': row['ratio']
-                })
-            
-            logger.debug(f"레시피 조회: {len(recipes)}개 레시피")
-            return recipes
-    
+        return self._recipes.get_recipes()
+
+    # ── 통계 집계 (StatisticsRepository) ──
+    def get_statistics(self) -> Dict:
+        return self._stats.get_statistics()
+
+    def sum_item_amount_by_date_range(self, start_date: str, end_date: str, material_name: str) -> float:
+        return self._stats.sum_item_amount_by_date_range(start_date, end_date, material_name)
+
+    def get_monthly_production_stats(self, months: int = 6) -> List[Dict]:
+        return self._stats.get_monthly_production_stats(months)
+
+    def get_top_materials(self, limit: int = 10, start_date: Optional[str] = None,
+                          end_date: Optional[str] = None) -> List[Dict]:
+        return self._stats.get_top_materials(limit, start_date, end_date)
+
+    def get_worker_stats(self, start_date: Optional[str] = None,
+                         end_date: Optional[str] = None) -> List[Dict]:
+        return self._stats.get_worker_stats(start_date, end_date)
+
+    def get_recipe_frequency(self, limit: int = 10, start_date: Optional[str] = None,
+                             end_date: Optional[str] = None) -> List[Dict]:
+        return self._stats.get_recipe_frequency(limit, start_date, end_date)
+
+    # ── 자재 재고 (MaterialStockRepository) ──
+    def get_all_material_stock(self) -> List[Dict]:
+        return self._stock.get_all_material_stock()
+
+    def get_low_stock_materials(self, default_threshold: float = 0.0) -> List[Dict]:
+        return self._stock.get_low_stock_materials(default_threshold)
+
+    def upsert_material_stock(self, material_code: str, material_name: str,
+                              current_stock: float, min_stock_threshold: float,
+                              unit: str = "g") -> bool:
+        return self._stock.upsert_material_stock(
+            material_code, material_name, current_stock, min_stock_threshold, unit
+        )
+
+    def seed_material_stock_from_history(self) -> int:
+        return self._stock.seed_material_stock_from_history()
+
+    # ==================================================================
+    # 인프라 (Facade 직접 보유)
+    # ==================================================================
+
     @handle_exceptions(user_message="데이터베이스 백업 중 오류가 발생했습니다.")
     def backup_database(self, backup_path: Optional[str] = None):
         """데이터베이스를 백업합니다."""
@@ -359,435 +271,11 @@ class MixingDatabaseManager(SqliteManagerBase):
             backup_dir = os.path.join(USER_DATA_DIR, "backups")
             os.makedirs(backup_dir, exist_ok=True)
             backup_path = os.path.join(backup_dir, f"mixing_records_backup_{timestamp}.db")
-        
+
         import shutil
         shutil.copy2(self.db_path, backup_path)
         logger.info(f"데이터베이스 백업 완료: {backup_path}")
         return backup_path
-    
-    def get_statistics(self) -> Dict:
-        """간단한 통계 정보를 반환합니다."""
-        with self.get_connection() as conn:
-            stats = {}
-
-            # 총 배합 건수
-            cursor = conn.execute("SELECT COUNT(*) as total_records FROM mixing_records")
-            stats['total_records'] = cursor.fetchone()['total_records']
-
-            # 최근 7일 배합 건수
-            cursor = conn.execute("""
-                SELECT COUNT(*) as recent_records
-                FROM mixing_records
-                WHERE work_date >= date('now', '-7 days')
-            """)
-            stats['recent_records'] = cursor.fetchone()['recent_records']
-
-            # 활성 레시피 수
-            cursor = conn.execute("SELECT COUNT(DISTINCT recipe_name) as recipe_count FROM recipes WHERE is_active = 1")
-            stats['recipe_count'] = cursor.fetchone()['recipe_count']
-
-            return stats
-
-    @handle_exceptions(user_message="배합 기록 삭제 중 오류가 발생했습니다.")
-    def delete_mixing_record(self, record_id: int) -> bool:
-        """
-        배합 기록을 삭제합니다.
-
-        Args:
-            record_id: 삭제할 레코드 ID
-
-        Returns:
-            삭제 성공 여부
-        """
-        with self.get_connection() as conn:
-            # 먼저 해당 레코드가 존재하는지 확인
-            cursor = conn.execute("SELECT product_lot FROM mixing_records WHERE id = ?", (record_id,))
-            record = cursor.fetchone()
-
-            if not record:
-                logger.warning(f"삭제할 레코드를 찾을 수 없습니다: ID {record_id}")
-                return False
-
-            product_lot = record['product_lot']
-
-            # 상세 정보 먼저 삭제
-            conn.execute("DELETE FROM mixing_details WHERE mixing_record_id = ?", (record_id,))
-
-            # 기본 레코드 삭제
-            conn.execute("DELETE FROM mixing_records WHERE id = ?", (record_id,))
-
-            conn.commit()
-            logger.info(f"배합 기록 삭제 완료: ID {record_id}, LOT {product_lot}")
-            return True
-
-    @handle_exceptions(user_message="배합 기록 조회 중 오류가 발생했습니다.", default_return=None)
-    def get_mixing_record_by_lot(self, product_lot: str) -> Optional[Dict]:
-        """
-        제품 LOT 번호로 배합 기록을 조회합니다.
-
-        Args:
-            product_lot: 제품 LOT 번호
-
-        Returns:
-            배합 기록 (없으면 None)
-        """
-        with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM mixing_records WHERE product_lot = ?", (product_lot,))
-            record = cursor.fetchone()
-
-            if record:
-                return dict(record)
-            return None
-    
-    @handle_exceptions(user_message="배합 기록 수정 중 오류가 발생했습니다.", default_return=False)
-    def update_mixing_record(self, record_id: int, worker: str, total_amount: float) -> bool:
-        """
-        배합 기본 기록을 수정합니다.
-
-        Args:
-            record_id: 레코드 ID
-            worker: 작업자 이름
-            total_amount: 배합량
-
-        Returns:
-            수정 성공 여부
-        """
-        with self.get_connection() as conn:
-            cursor = conn.execute("""
-                UPDATE mixing_records 
-                SET worker = ?, total_amount = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            """, (worker, total_amount, record_id))
-            
-            conn.commit()
-            
-            if cursor.rowcount > 0:
-                logger.info(f"배합 기록 수정 완료: ID {record_id}")
-                return True
-            return False
-    
-    @handle_exceptions(user_message="배합 상세 정보 수정 중 오류가 발생했습니다.")
-    def update_mixing_detail(self, record_id: int, material_code: str, 
-                              material_lot: str, ratio: float, 
-                              theory_amount: float, actual_amount: float) -> bool:
-        """
-        배합 상세 정보를 수정합니다.
-
-        Args:
-            record_id: 배합 기록 ID
-            material_code: 품목코드
-            material_lot: 자재 LOT
-            ratio: 배합비율
-            theory_amount: 이론계량
-            actual_amount: 실제배합
-
-        Returns:
-            수정 성공 여부
-        """
-        with self.get_connection() as conn:
-            cursor = conn.execute("""
-                UPDATE mixing_details 
-                SET material_lot = ?, ratio = ?, theory_amount = ?, actual_amount = ?
-                WHERE mixing_record_id = ? AND material_code = ?
-            """, (material_lot, ratio, theory_amount, actual_amount, record_id, material_code))
-            
-            conn.commit()
-            
-            if cursor.rowcount > 0:
-                logger.debug(f"배합 상세 수정 완료: record_id={record_id}, material_code={material_code}")
-                return True
-            return False
-
-    @handle_exceptions(user_message="배합 기록 수정 중 오류가 발생했습니다.", default_return=False)
-    def update_mixing_record_with_details(self, record_id: int, worker: str,
-                                          total_amount: float, materials: List[Dict]) -> bool:
-        """기본 기록과 상세 자재들을 단일 트랜잭션으로 수정한다.
-
-        자재별 개별 커밋(N+1)을 제거하여 부분 실패 시 전체 롤백을 보장한다.
-        """
-        with self.get_connection() as conn:
-            conn.execute("""
-                UPDATE mixing_records
-                SET worker = ?, total_amount = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            """, (worker, total_amount, record_id))
-            for material in materials:
-                conn.execute("""
-                    UPDATE mixing_details
-                    SET material_lot = ?, ratio = ?, theory_amount = ?, actual_amount = ?
-                    WHERE mixing_record_id = ? AND material_code = ?
-                """, (
-                    material.get('material_lot', ''),
-                    material.get('ratio', 0),
-                    material.get('theory_amount', 0),
-                    material.get('actual_amount', 0),
-                    record_id,
-                    material['material_code'],
-                ))
-            conn.commit()
-            logger.info(f"배합 기록(상세 포함) 수정 완료: ID {record_id}, 자재 {len(materials)}건")
-            return True
-
-    @handle_exceptions(user_message="품목별 배합량 집계 중 오류가 발생했습니다.", default_return=0.0)
-    def sum_item_amount_by_date_range(self, start_date: str, end_date: str, material_name: str) -> float:
-        """
-        특정 기간 동안의 특정 품목의 총 실제 배합량을 계산합니다.
-
-        Args:
-            start_date: 시작 날짜 (YYYY-MM-DD)
-            end_date: 종료 날짜 (YYYY-MM-DD)
-            material_name: 품목명
-
-        Returns:
-            총 실제 배합량
-        """
-        with self.get_connection() as conn:
-            query = """
-                SELECT SUM(d.actual_amount) as total
-                FROM mixing_details d
-                JOIN mixing_records r ON d.mixing_record_id = r.id
-                WHERE r.work_date BETWEEN ? AND ?
-                AND d.material_name = ?;
-            """
-            cursor = conn.execute(query, (start_date, end_date, material_name))
-            result = cursor.fetchone()
-            
-            total = result['total'] if result and result['total'] is not None else 0.0
-            logger.debug(f"'{material_name}'의 총 배합량 집계 ({start_date}~{end_date}): {total}")
-            return total
-
-    @handle_exceptions(user_message="배합 기록 전체 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_all_records_with_details(self, limit: int = 10000) -> List[Dict]:
-        """모든 배합 기록과 상세 정보를 JOIN으로 한 번에 조회합니다."""
-        with self.get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT r.id, r.product_lot, r.recipe_name, r.worker,
-                       r.work_date, r.work_time, r.total_amount, r.scale,
-                       r.created_at, r.updated_at,
-                       d.material_code, d.material_name, d.material_lot,
-                       d.ratio, d.theory_amount, d.actual_amount,
-                       d.sequence_order
-                FROM mixing_records r
-                JOIN mixing_details d ON d.mixing_record_id = r.id
-                ORDER BY r.created_at DESC, d.sequence_order
-                LIMIT ?
-            """, (limit,))
-            results = [dict(row) for row in cursor.fetchall()]
-            logger.debug(f"배합 기록+상세 일괄 조회: {len(results)}건")
-            return results
-
-    @handle_exceptions(user_message="전체 품목명 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_all_material_names(self) -> List[str]:
-        """데이터베이스에 기록된 모든 고유 품목명을 조회합니다."""
-        with self.get_connection() as conn:
-            query = "SELECT DISTINCT material_name FROM mixing_details ORDER BY material_name;"
-            cursor = conn.execute(query)
-            names = [row['material_name'] for row in cursor.fetchall()]
-            logger.debug(f"전체 고유 품목명 조회: {len(names)}건")
-            return names
-
-    # ------------------------------------------------------------------
-    # Dashboard 집계 쿼리 (PDCA #17)
-    # ------------------------------------------------------------------
-
-    @handle_exceptions(user_message="월별 생산 통계 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_monthly_production_stats(self, months: int = 6) -> List[Dict]:
-        """최근 N개월 월별 생산 통계 (오래된 순)."""
-        if months <= 0:
-            return []
-        modifier = "-{0} months".format(months)
-        with self.get_connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT strftime('%Y-%m', work_date) AS year_month,
-                       COUNT(*) AS record_count,
-                       COALESCE(SUM(total_amount), 0) AS total_amount
-                FROM mixing_records
-                WHERE work_date >= date('now', ?)
-                GROUP BY year_month
-                ORDER BY year_month ASC
-                """,
-                (modifier,),
-            )
-            rows = [dict(row) for row in cursor.fetchall() if row["year_month"]]
-            logger.debug(f"월별 생산 통계 조회: {len(rows)}개월")
-            return rows
-
-    @handle_exceptions(user_message="자재 사용량 집계 중 오류가 발생했습니다.", default_return=[])
-    def get_top_materials(
-        self,
-        limit: int = 10,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-    ) -> List[Dict]:
-        """기간 내 자재 사용량 TOP-N."""
-        query = (
-            "SELECT d.material_code, d.material_name, "
-            "       SUM(d.actual_amount) AS total_actual, "
-            "       COUNT(DISTINCT d.mixing_record_id) AS use_count "
-            "FROM mixing_details d "
-            "JOIN mixing_records r ON d.mixing_record_id = r.id "
-            "WHERE 1=1"
-        )
-        params: List = []
-        query = self._append_date_range(query, params, start_date, end_date, "r.work_date")
-        query += " GROUP BY d.material_code, d.material_name ORDER BY total_actual DESC LIMIT ?"
-        params.append(limit)
-        with self.get_connection() as conn:
-            cursor = conn.execute(query, params)
-            rows = [dict(row) for row in cursor.fetchall()]
-            logger.debug(f"자재 TOP-{limit} 조회: {len(rows)}건")
-            return rows
-
-    @handle_exceptions(user_message="작업자별 통계 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_worker_stats(
-        self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-    ) -> List[Dict]:
-        """기간 내 작업자별 통계 (건수 desc)."""
-        query = (
-            "SELECT worker, "
-            "       COUNT(*) AS record_count, "
-            "       COALESCE(SUM(total_amount), 0) AS total_amount, "
-            "       COALESCE(AVG(total_amount), 0) AS avg_amount "
-            "FROM mixing_records "
-            "WHERE 1=1"
-        )
-        params: List = []
-        query = self._append_date_range(query, params, start_date, end_date)
-        query += " GROUP BY worker ORDER BY record_count DESC"
-        with self.get_connection() as conn:
-            cursor = conn.execute(query, params)
-            rows = [dict(row) for row in cursor.fetchall()]
-            logger.debug(f"작업자 통계 조회: {len(rows)}명")
-            return rows
-
-    @handle_exceptions(user_message="레시피 빈도 집계 중 오류가 발생했습니다.", default_return=[])
-    def get_recipe_frequency(
-        self,
-        limit: int = 10,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-    ) -> List[Dict]:
-        """기간 내 레시피 실행 빈도 TOP-N."""
-        query = (
-            "SELECT recipe_name, "
-            "       COUNT(*) AS run_count, "
-            "       COALESCE(SUM(total_amount), 0) AS total_amount "
-            "FROM mixing_records "
-            "WHERE 1=1"
-        )
-        params: List = []
-        query = self._append_date_range(query, params, start_date, end_date)
-        query += " GROUP BY recipe_name ORDER BY run_count DESC LIMIT ?"
-        params.append(limit)
-        with self.get_connection() as conn:
-            cursor = conn.execute(query, params)
-            rows = [dict(row) for row in cursor.fetchall()]
-            logger.debug(f"레시피 빈도 TOP-{limit} 조회: {len(rows)}건")
-            return rows
-
-
-    # ------------------------------------------------------------------
-    # 자재 재고 (material_stock) — PDCA: material-stock-threshold-alert
-    # ------------------------------------------------------------------
-
-    @handle_exceptions(user_message="자재 재고 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_all_material_stock(self) -> List[Dict]:
-        """material_stock 전체 조회 (자재명 오름차순)."""
-        with self.get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT material_code, material_name, current_stock, "
-                "       min_stock_threshold, unit, updated_at "
-                "FROM material_stock ORDER BY material_name ASC"
-            )
-            rows = [dict(row) for row in cursor.fetchall()]
-            logger.debug(f"자재 재고 전체 조회: {len(rows)}건")
-            return rows
-
-    @handle_exceptions(user_message="저재고 자재 조회 중 오류가 발생했습니다.", default_return=[])
-    def get_low_stock_materials(self, default_threshold: float = 0.0) -> List[Dict]:
-        """현재고가 유효 임계값 이하인 자재 목록.
-
-        유효 임계값 = min_stock_threshold>0 이면 그 값, 아니면 default_threshold.
-        유효 임계값이 0 이하인 자재는 알림 대상에서 제외한다.
-        반환 dict: material_code, material_name, current_stock, threshold,
-                  shortage(=threshold-current_stock), unit
-        """
-        default = float(default_threshold or 0.0)
-        query = (
-            "SELECT material_code, material_name, current_stock, unit, "
-            "       CASE WHEN min_stock_threshold > 0 THEN min_stock_threshold ELSE ? END AS threshold "
-            "FROM material_stock "
-            "WHERE (CASE WHEN min_stock_threshold > 0 THEN min_stock_threshold ELSE ? END) > 0 "
-            "  AND current_stock <= (CASE WHEN min_stock_threshold > 0 THEN min_stock_threshold ELSE ? END)"
-        )
-        with self.get_connection() as conn:
-            cursor = conn.execute(query, [default, default, default])
-            rows = [dict(row) for row in cursor.fetchall()]
-        for row in rows:
-            threshold = float(row.get("threshold") or 0.0)
-            current = float(row.get("current_stock") or 0.0)
-            row["shortage"] = round(threshold - current, 6)
-        rows.sort(key=lambda r: r.get("shortage", 0.0), reverse=True)
-        logger.debug(f"저재고 자재 조회: {len(rows)}건 (기본임계값={default})")
-        return rows
-
-    @handle_exceptions(user_message="자재 재고 저장 중 오류가 발생했습니다.", default_return=False)
-    def upsert_material_stock(self, material_code: str, material_name: str,
-                              current_stock: float, min_stock_threshold: float,
-                              unit: str = "g") -> bool:
-        """material_code 기준 INSERT 또는 UPDATE."""
-        code = (material_code or material_name or "").strip()
-        if not code:
-            logger.warning("자재 재고 upsert 실패: material_code/이름이 비어 있음")
-            return False
-        current = max(0.0, float(current_stock or 0.0))
-        threshold = max(0.0, float(min_stock_threshold or 0.0))
-        with self.get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO material_stock
-                    (material_code, material_name, current_stock, min_stock_threshold, unit, updated_at)
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(material_code) DO UPDATE SET
-                    material_name = excluded.material_name,
-                    current_stock = excluded.current_stock,
-                    min_stock_threshold = excluded.min_stock_threshold,
-                    unit = excluded.unit,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                [code, (material_name or code), current, threshold, (unit or "g")],
-            )
-            conn.commit()
-        return True
-
-    @handle_exceptions(user_message="자재 재고 초기화 중 오류가 발생했습니다.", default_return=0)
-    def seed_material_stock_from_history(self) -> int:
-        """배합 이력(mixing_details)의 자재를 재고 마스터에 없으면 0/0으로 시드.
-
-        반환: 신규 삽입 건수.
-        """
-        with self.get_connection() as conn:
-            cursor = conn.execute(
-                """
-                INSERT OR IGNORE INTO material_stock
-                    (material_code, material_name, current_stock, min_stock_threshold, unit)
-                SELECT
-                    COALESCE(NULLIF(TRIM(d.material_code), ''), d.material_name) AS code,
-                    MIN(d.material_name) AS name,
-                    0, 0, 'g'
-                FROM mixing_details d
-                WHERE COALESCE(NULLIF(TRIM(d.material_code), ''), d.material_name) IS NOT NULL
-                  AND COALESCE(NULLIF(TRIM(d.material_code), ''), d.material_name) <> ''
-                GROUP BY code
-                """
-            )
-            inserted = cursor.rowcount if cursor.rowcount is not None else 0
-            conn.commit()
-        logger.debug(f"자재 재고 시드: {inserted}건 신규 삽입")
-        return inserted
 
 
 __all__ = ["MixingDatabaseManager"]
