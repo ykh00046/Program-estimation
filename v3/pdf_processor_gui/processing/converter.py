@@ -9,6 +9,8 @@ from PIL import Image, ImageEnhance, ImageFilter
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 
+from utils.logger import logger
+
 
 class PdfConverter(QObject):
     """
@@ -86,7 +88,8 @@ class PdfConverter(QObject):
             self.progress_updated.emit(100, "변환 완료!")
             self.finished.emit(True, f"PDF 변환이 완료되었습니다: {os.path.basename(output_pdf_path)}")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 워커 진입점: 변환 전체 실패를 UI에 전달
+            logger.error(f"PDF 변환 중 오류 발생: {e}", exc_info=True)
             self.finished.emit(False, f"변환 중 오류 발생: {str(e)}")
             self._cleanup()
 
@@ -104,7 +107,7 @@ class PdfConverter(QObject):
 
             return True, "엑셀 → PDF 변환 완료"
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — win32com COM 오류(com_error 등) 광역 흡수
             return False, f"엑셀 → PDF 변환 오류: {str(e)}"
 
         finally:
@@ -123,8 +126,8 @@ class PdfConverter(QObject):
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 images.append(img)
             doc.close()
-        except Exception as e:
-            print(f"PDF → 이미지 변환 오류: {e}")
+        except Exception as e:  # noqa: BLE001 — PyMuPDF(fitz) 렌더링 예외 광역 흡수
+            logger.error(f"PDF → 이미지 변환 오류: {e}", exc_info=True)
         return images
 
     def _apply_scan_effects(self, image, blur_radius, noise_range, contrast_factor, brightness_factor):
@@ -176,4 +179,4 @@ class PdfConverter(QObject):
             try:
                 os.remove(self.temp_pdf_path)
             except (OSError, IOError) as e:
-                print(f"임시 파일 삭제 오류: {e}")
+                logger.warning(f"임시 파일 삭제 오류: {e}")
