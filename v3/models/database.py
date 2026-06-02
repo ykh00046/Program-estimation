@@ -279,6 +279,9 @@ class MixingDatabaseManager(SqliteManagerBase):
     def apply_consumption(self, consumption: List[Dict]) -> int:
         return self._stock.apply_consumption(consumption)
 
+    def apply_adjustment(self, items: List[Dict], note: str = "재고 조정") -> int:
+        return self._stock.apply_adjustment(items, note)
+
     def add_inbound(self, material_code: str, material_name: str, quantity: float,
                     unit: str = "g", note: str = "") -> bool:
         return self._stock.add_inbound(material_code, material_name, quantity, unit, note)

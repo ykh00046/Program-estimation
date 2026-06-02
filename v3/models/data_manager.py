@@ -224,6 +224,65 @@ class DataManager:
         except Exception as e:  # noqa: BLE001 — 차감 실패가 저장을 막지 않음
             logger.warning(f"재고 자동 차감 실패(저장은 정상): {e}")
 
+    def apply_adjustment(self, items: List[Dict], note: str = "재고 조정") -> int:
+        """부호 있는 델타로 자재 재고를 조정하고 MOVE_ADJUST 이력을 기록 (PDCA #31)."""
+        return self.db_manager.apply_adjustment(items, note)
+
+    @staticmethod
+    def _norm_code(d: Dict) -> str:
+        """저장 차감과 동일한 정규화: material_code 우선, 없으면 material_name."""
+        return (str(d.get("material_code") or "").strip()
+                or str(d.get("material_name") or "").strip())
+
+    def _reverse_inventory(self, details: List[Dict], note: str) -> None:
+        """details의 actual_amount만큼 재고를 원복(+)한다(설정 on, best-effort).
+
+        원복 실패는 배합 기록 삭제/수정을 롤백시키지 않는다(생산 기록이 1순위 진실).
+        """
+        if not self.get_auto_deduct_on_save():
+            return
+        try:
+            items = [
+                {"material_code": self._norm_code(d),
+                 "delta": float(d.get("actual_amount") or 0.0)}
+                for d in (details or [])
+            ]
+            items = [it for it in items if it["material_code"] and it["delta"] > 0]
+            if not items:
+                return
+            updated = self.db_manager.apply_adjustment(items, note)
+            if updated:
+                logger.info(f"재고 원복 완료: {updated}건 ({note})")
+        except Exception as e:  # noqa: BLE001 — 원복 실패가 삭제/수정을 막지 않음
+            logger.warning(f"재고 원복 실패(작업은 정상): {e}")
+
+    def _readjust_inventory(self, old_details: List[Dict],
+                            new_materials: List[Dict]) -> None:
+        """수정 시: old 사용량 원복(+) + new 사용량 재차감(-)을 자재당 2건의
+        MOVE_ADJUST로 분리 기록한다(설정 on, best-effort)."""
+        if not self.get_auto_deduct_on_save():
+            return
+        try:
+            plus = [
+                {"material_code": self._norm_code(d),
+                 "delta": float(d.get("actual_amount") or 0.0)}
+                for d in (old_details or [])
+            ]
+            plus = [it for it in plus if it["material_code"] and it["delta"] > 0]
+            if plus:
+                self.db_manager.apply_adjustment(plus, "배합 수정 원복")
+            minus = [
+                {"material_code": self._norm_code(d),
+                 "delta": -float(d.get("actual_amount") or 0.0)}
+                for d in (new_materials or [])
+            ]
+            minus = [it for it in minus if it["material_code"] and it["delta"] < 0]
+            if minus:
+                self.db_manager.apply_adjustment(minus, "배합 수정 재차감")
+            logger.info("재고 재정산 완료(수정)")
+        except Exception as e:  # noqa: BLE001 — 재정산 실패가 수정을 막지 않음
+            logger.warning(f"재고 재정산 실패(수정은 정상): {e}")
+
     def _generate_report_files(self, export_data: Dict, worker_name: str,
                                signature_cfg: Dict, effects_params: Optional[Dict],
                                include_work_time: bool = True) -> Optional[str]:
@@ -327,8 +386,11 @@ class DataManager:
                 logger.warning(f"삭제할 기록을 찾을 수 없습니다: LOT {product_lot}")
                 return False
 
+            # 삭제 전에 차감분 스냅샷(삭제 후엔 mixing_details가 사라짐)
+            old_details = self.db_manager.get_mixing_details(record['id'])
             success = self.db_manager.delete_mixing_record(record['id'])
             if success:
+                self._reverse_inventory(old_details, "배합 기록 삭제 원복")
                 logger.info(f"배합 기록 삭제 완료: LOT {product_lot}")
             return success
         except (sqlite3.Error, ValueError) as e:
@@ -352,6 +414,7 @@ class DataManager:
                 return False
             
             record_id = record['id']
+            old_details = self.db_manager.get_mixing_details(record_id)  # 수정 전 스냅샷
 
             # 기본 기록 + 상세 자재를 단일 트랜잭션으로 수정 (부분 실패 시 전체 롤백)
             success = self.db_manager.update_mixing_record_with_details(
@@ -363,6 +426,8 @@ class DataManager:
             if not success:
                 return False
 
+            # old 사용량 원복(+) + new 사용량 재차감(-) → 자재당 2건 ADJUST 이력
+            self._readjust_inventory(old_details, materials)
             logger.info(f"배합 기록 수정 완료: LOT {product_lot}")
             return True
         except (sqlite3.Error, ValueError) as e:

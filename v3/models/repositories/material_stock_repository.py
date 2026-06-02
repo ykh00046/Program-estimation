@@ -143,6 +143,65 @@ class MaterialStockRepository(SqliteManagerBase):
         logger.debug(f"재고 자동 차감: {updated}건 갱신 (요청 {len(totals)}종)")
         return updated
 
+    @handle_exceptions(user_message="자재 재고 조정 중 오류가 발생했습니다.", default_return=0)
+    def apply_adjustment(self, items: List[Dict], note: str = "재고 조정") -> int:
+        """부호 있는 델타(``delta``)를 기존 재고에 적용하고 MOVE_ADJUST 이력을 기록한다.
+
+        배합 기록 수정/삭제에 따른 재고 원복(+)·재정산(-)에 사용한다(PDCA #31).
+        ``apply_consumption``(차감 전용, CONSUME)과 달리 양/음 델타를 모두 처리한다.
+
+        Args:
+            items: ``[{"material_code": str, "delta": float}, ...]``
+                   delta > 0 = 가산(원복), delta < 0 = 차감(재정산). 0/빈코드는 건너뜀.
+            note:  이력 메모(예: "배합 기록 삭제 원복", "배합 수정 재차감").
+
+        동작:
+            - material_code 기준으로 델타를 합산한다.
+            - 단일 트랜잭션에서 기존 행만 ``current_stock = MAX(0, current_stock + delta)``
+              로 UPDATE 한다. 마스터에 없는 자재는 생성하지 않는다(rowcount 0 → 이력 미기록).
+            - UPDATE 성공한 자재마다 동일 트랜잭션에서 MOVE_ADJUST 이력(부호 있는 delta)을 기록.
+
+        Returns:
+            실제 조정(갱신)된 자재 수.
+        """
+        totals: Dict[str, float] = {}
+        for item in items or []:
+            code = str(item.get("material_code") or "").strip()
+            try:
+                delta = float(item.get("delta") or 0.0)
+            except (TypeError, ValueError):
+                delta = 0.0
+            if not code or delta == 0:
+                continue
+            totals[code] = totals.get(code, 0.0) + delta
+        if not totals:
+            return 0
+        updated = 0
+        with self.get_connection() as conn:
+            for code, delta in totals.items():
+                cursor = conn.execute(
+                    "UPDATE material_stock "
+                    "SET current_stock = MAX(0, current_stock + ?), updated_at = CURRENT_TIMESTAMP "
+                    "WHERE material_code = ?",
+                    [delta, code],
+                )
+                if cursor.rowcount:
+                    updated += cursor.rowcount
+                    # 조정과 동일 트랜잭션에서 ADJUST 이력 기록 (부호 있는 델타, PDCA #31)
+                    after = conn.execute(
+                        "SELECT current_stock, material_name, unit FROM material_stock WHERE material_code = ?",
+                        [code],
+                    ).fetchone()
+                    stock_after = float(after["current_stock"]) if after else 0.0
+                    name = after["material_name"] if after else code
+                    unit = after["unit"] if after else "g"
+                    self._insert_history(
+                        conn, code, name, MOVE_ADJUST, delta, stock_after, unit, note
+                    )
+            conn.commit()
+        logger.debug(f"재고 조정: {updated}건 갱신 (요청 {len(totals)}종, note={note})")
+        return updated
+
     # ------------------------------------------------------------------
     # 입고 / 이동 이력 (PDCA #30 inventory_inbound_history)
     # ------------------------------------------------------------------
