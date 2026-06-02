@@ -229,27 +229,50 @@ class MaterialStockRepository(SqliteManagerBase):
         name = (material_name or code)
         unit = (unit or "g")
         with self.get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO material_stock
-                    (material_code, material_name, current_stock, min_stock_threshold, unit, updated_at)
-                VALUES (?, ?, ?, 0, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(material_code) DO UPDATE SET
-                    material_name = excluded.material_name,
-                    current_stock = current_stock + excluded.current_stock,
-                    unit = excluded.unit,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                [code, name, qty, unit],
-            )
-            after = conn.execute(
-                "SELECT current_stock FROM material_stock WHERE material_code = ?", [code]
-            ).fetchone()
-            stock_after = float(after["current_stock"]) if after else qty
-            self._insert_history(conn, code, name, MOVE_INBOUND, qty, stock_after, unit, note or "")
+            stock_after = self._apply_inbound(conn, code, name, qty, unit, note or "")
             conn.commit()
         logger.info(f"입고 등록: {code} +{qty}{unit} → 재고 {stock_after}{unit}")
         return True
+
+    def apply_replenishment(self, material_code: str, material_name: str, quantity: float,
+                            unit: str = "g", note: str = "") -> bool:
+        """재고 보충(입고)의 공개 별칭 (PDCA #32 R3).
+
+        ``add_inbound``과 완전히 동일하게 누적 가산 + INBOUND 이력을 기록한다.
+        사용자 요청 명칭(apply_replenishment)으로도 호출 가능하도록 제공한다.
+        """
+        return self.add_inbound(material_code, material_name, quantity, unit, note)
+
+    def _apply_inbound(self, conn, material_code: str, material_name: str, quantity: float,
+                       unit: str, note: str) -> float:
+        """주어진 conn(트랜잭션) 안에서 재고 누적 가산 + INBOUND 이력 기록.
+
+        커밋은 호출자 책임. 발주 입고(PurchaseOrderRepository)와 단발 입고(add_inbound)가
+        공유하는 입고 반영 코어. 사전조건: material_code 비어있지 않음, quantity > 0.
+        Returns: 이동 후 재고(stock_after).
+        """
+        name = (material_name or material_code)
+        unit = (unit or "g")
+        conn.execute(
+            """
+            INSERT INTO material_stock
+                (material_code, material_name, current_stock, min_stock_threshold, unit, updated_at)
+            VALUES (?, ?, ?, 0, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(material_code) DO UPDATE SET
+                material_name = excluded.material_name,
+                current_stock = current_stock + excluded.current_stock,
+                unit = excluded.unit,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            [material_code, name, float(quantity), unit],
+        )
+        after = conn.execute(
+            "SELECT current_stock FROM material_stock WHERE material_code = ?", [material_code]
+        ).fetchone()
+        stock_after = float(after["current_stock"]) if after else float(quantity)
+        self._insert_history(conn, material_code, name, MOVE_INBOUND, float(quantity),
+                             stock_after, unit, note or "")
+        return stock_after
 
     @handle_exceptions(user_message="입출고 이력 조회 중 오류가 발생했습니다.", default_return=[])
     def get_stock_history(self, material_code: Optional[str] = None, limit: int = 200) -> List[Dict]:

@@ -581,6 +581,36 @@ class DataManager:
         """자재 입출고 이력(최신순) 조회. material_code 지정 시 해당 자재만 (PDCA #30)."""
         return self.db_manager.get_stock_history(material_code, limit)
 
+    def apply_replenishment(self, material_code: str, material_name: str, quantity: float,
+                            unit: str = "g", note: str = "") -> bool:
+        """재고 보충(입고)의 공개 별칭. add_inbound과 동일 동작 (PDCA #32 R3)."""
+        return self.db_manager.apply_replenishment(material_code, material_name, quantity, unit, note)
+
+    # ------------------------------------------------------------------
+    # 자재 발주(PO) 관리 (PDCA #32 purchase_order_management)
+    # ------------------------------------------------------------------
+
+    def create_purchase_order(self, material_code: str, material_name: str, supplier: str,
+                              ordered_qty: float, unit: str = "g",
+                              note: str = "") -> Optional[int]:
+        """발주 등록(상태 PENDING). 성공 시 발주 id, 실패 시 None."""
+        return self.db_manager.create_purchase_order(
+            material_code, material_name, supplier, ordered_qty, unit, note
+        )
+
+    def get_purchase_orders(self, status: Optional[str] = None, limit: int = 200) -> List[Dict]:
+        """발주 목록(최신순) 조회. status 지정 시 해당 상태만. remaining_qty 포함."""
+        return self.db_manager.get_purchase_orders(status, limit)
+
+    def receive_purchase_order(self, po_id: int, received_qty: Optional[float] = None,
+                               note: str = "") -> bool:
+        """발주 입고 처리(부분/전체). 재고 누적 + INBOUND 이력 동일 트랜잭션."""
+        return self.db_manager.receive_purchase_order(po_id, received_qty, note)
+
+    def cancel_purchase_order(self, po_id: int) -> bool:
+        """PENDING/PARTIAL 발주 취소(CANCELLED). 입고분 재고 원복 없음."""
+        return self.db_manager.cancel_purchase_order(po_id)
+
     def get_inventory_alerts(self) -> List[MaterialAlert]:
         """현재 재고 기준 임계값 경고 목록(부족분 큰 순).
 

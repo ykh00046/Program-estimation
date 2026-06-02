@@ -25,6 +25,7 @@ from models.repositories import (
     RecipeRepository,
     StatisticsRepository,
     MaterialStockRepository,
+    PurchaseOrderRepository,
 )
 
 
@@ -48,6 +49,7 @@ class MixingDatabaseManager(SqliteManagerBase):
         self._recipes = RecipeRepository(self.db_path)
         self._stats = StatisticsRepository(self.db_path)
         self._stock = MaterialStockRepository(self.db_path)
+        self._po = PurchaseOrderRepository(self.db_path, self._stock)
         logger.info(f"데이터베이스 초기화 완료: {self.db_path}")
 
     def _migrate_legacy_db(self):
@@ -149,10 +151,31 @@ class MixingDatabaseManager(SqliteManagerBase):
                 )
             """)
 
+            # 자재 발주(PO) 테이블 (PDCA #32 purchase_order_management, 단일 자재 라인)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS purchase_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    po_number TEXT NOT NULL,
+                    material_code TEXT NOT NULL,
+                    material_name TEXT NOT NULL DEFAULT '',
+                    supplier TEXT NOT NULL DEFAULT '',
+                    ordered_qty REAL NOT NULL,
+                    received_qty REAL NOT NULL DEFAULT 0,
+                    unit TEXT NOT NULL DEFAULT 'g',
+                    status TEXT NOT NULL DEFAULT 'PENDING',
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # 인덱스 생성
             conn.execute("CREATE INDEX IF NOT EXISTS idx_material_stock_code ON material_stock(material_code)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_history_code ON material_stock_history(material_code)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_history_created ON material_stock_history(created_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_po_status ON purchase_orders(status)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_po_created ON purchase_orders(created_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_po_code ON purchase_orders(material_code)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_mixing_records_date ON mixing_records(work_date)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_mixing_records_lot ON mixing_records(product_lot)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_name ON recipes(recipe_name)")
@@ -288,6 +311,28 @@ class MixingDatabaseManager(SqliteManagerBase):
 
     def get_stock_history(self, material_code: Optional[str] = None, limit: int = 200) -> List[Dict]:
         return self._stock.get_stock_history(material_code, limit)
+
+    def apply_replenishment(self, material_code: str, material_name: str, quantity: float,
+                            unit: str = "g", note: str = "") -> bool:
+        return self._stock.apply_replenishment(material_code, material_name, quantity, unit, note)
+
+    # ── 자재 발주 (PurchaseOrderRepository) ──
+    def create_purchase_order(self, material_code: str, material_name: str, supplier: str,
+                              ordered_qty: float, unit: str = "g",
+                              note: str = "") -> Optional[int]:
+        return self._po.create_purchase_order(
+            material_code, material_name, supplier, ordered_qty, unit, note
+        )
+
+    def get_purchase_orders(self, status: Optional[str] = None, limit: int = 200) -> List[Dict]:
+        return self._po.get_purchase_orders(status, limit)
+
+    def receive_purchase_order(self, po_id: int, received_qty: Optional[float] = None,
+                               note: str = "") -> bool:
+        return self._po.receive_purchase_order(po_id, received_qty, note)
+
+    def cancel_purchase_order(self, po_id: int) -> bool:
+        return self._po.cancel_purchase_order(po_id)
 
     # ==================================================================
     # 인프라 (Facade 직접 보유)

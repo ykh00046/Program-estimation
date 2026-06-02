@@ -122,6 +122,11 @@ class StockSettingsDialog(QDialog):
         self.history_btn.clicked.connect(self._open_history)
         row.addWidget(self.history_btn)
 
+        self.po_btn = QPushButton("발주 관리")
+        self.po_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.po_btn.clicked.connect(self._open_purchase_orders)
+        row.addWidget(self.po_btn)
+
         row.addStretch(1)
 
         self.cancel_btn = QPushButton("취소")
@@ -191,6 +196,12 @@ class StockSettingsDialog(QDialog):
         """입출고 이력 다이얼로그를 연다(읽기 전용)."""
         from ui.dialogs.stock_history_dialog import StockHistoryDialog
         StockHistoryDialog(self.data_manager, self).exec()
+
+    def _open_purchase_orders(self) -> None:
+        """발주 관리 다이얼로그를 열고, 입고 처리 등으로 재고가 바뀌면 테이블을 갱신한다."""
+        from ui.dialogs.purchase_order_dialog import PurchaseOrderDialog
+        PurchaseOrderDialog(self.data_manager, self).exec()
+        self._reload_after_change()
 
     def _reload_after_change(self) -> None:
         """입고 등록 등으로 재고가 변경된 뒤 테이블을 재조회한다(seed 미호출)."""

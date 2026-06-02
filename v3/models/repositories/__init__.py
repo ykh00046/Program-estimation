@@ -9,10 +9,12 @@ from models.repositories.mixing_record_repository import MixingRecordRepository
 from models.repositories.recipe_repository import RecipeRepository
 from models.repositories.statistics_repository import StatisticsRepository
 from models.repositories.material_stock_repository import MaterialStockRepository
+from models.repositories.purchase_order_repository import PurchaseOrderRepository
 
 __all__ = [
     "MixingRecordRepository",
     "RecipeRepository",
     "StatisticsRepository",
     "MaterialStockRepository",
+    "PurchaseOrderRepository",
 ]
