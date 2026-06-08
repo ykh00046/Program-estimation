@@ -14,6 +14,7 @@ import os
 from config.config_manager import config
 from config.settings import BASE_PATH
 from utils.logger import logger
+from ui.styles import UITheme
 from PIL import Image
 
 # signature_qa_tool의 Generator 로직 재사용

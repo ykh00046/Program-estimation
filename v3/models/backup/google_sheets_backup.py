@@ -6,9 +6,19 @@ BackupProvider 프로토콜을 구현합니다.
 import os
 from typing import Protocol, List, Dict, Any, Tuple
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
-from google.auth.exceptions import DefaultCredentialsError, TransportError
+
+# Google Sheets 백업은 선택 기능이다. 관련 의존성(gspread/google-auth)이 없거나
+# 손상된 환경에서도 앱 전체(데이터 계층) 임포트가 실패하지 않도록 지연/안전 임포트한다.
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    from google.auth.exceptions import DefaultCredentialsError, TransportError
+    GSPREAD_AVAILABLE = True
+except ImportError:  # pragma: no cover - 의존성 미설치 환경 방어
+    gspread = None
+    Credentials = None
+    DefaultCredentialsError = TransportError = Exception  # 미사용 경로의 NameError 방지용 별칭
+    GSPREAD_AVAILABLE = False
 
 from config.google_sheets_config import GoogleSheetsConfig
 from utils.logger import logger
@@ -41,6 +51,10 @@ class GoogleSheetsBackup:
 
     def _authenticate(self) -> bool:
         """Google Sheets API 인증을 수행합니다."""
+        if not GSPREAD_AVAILABLE:
+            logger.error("gspread/google-auth 미설치로 Google Sheets 백업을 사용할 수 없습니다.")
+            return False
+
         if self.gc:
             return True # 이미 인증됨
 
