@@ -251,8 +251,17 @@ class MainWindow(FluentWindow):
         self._set_status_message(f"Google Sheets 백업 실패: {message}")
 
     def closeEvent(self, event):
-        """종료 시 잔여 백그라운드 워커를 대기합니다 (PDCA #33)."""
-        wait_for_workers(self)
+        """종료 시 잔여 백그라운드 워커를 대기합니다 (PDCA #33/#36).
+
+        수기 입력/일괄 생성 인터페이스도 워커 owner이므로 함께 대기한다.
+        (작업자 미선택 조기 종료 시 인터페이스 미생성 가능 — getattr 가드)
+        """
+        owners = (self,
+                  getattr(self, "manual_interface", None),
+                  getattr(self, "bulk_interface", None))
+        for owner in owners:
+            if owner is not None:
+                wait_for_workers(owner)
         super().closeEvent(event)
 
     def _set_status_message(self, message: str) -> None:

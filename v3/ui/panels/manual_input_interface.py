@@ -16,6 +16,7 @@ from ui.panels.scan_effects_panel import ScanEffectsPanel
 from ui.panels.signature_panel import SignaturePanel
 from ui.panels.dhr_validation import validate_manual_input
 from ui.widgets.pasteable_table import PasteableTableWidget
+from ui.workers import start_worker
 from config.config_manager import config
 from utils.logger import logger
 from typing import Optional
@@ -309,17 +310,32 @@ class ManualInputInterface(QScrollArea):
             return
         data["product_lot"] = saved_lot
 
-        try:
-            excel_path, pdf_path = self._run_export_pipeline(data, details_data)
-            self._notify_save_result(saved_lot, excel_path, pdf_path)
-            logger.info(f"DHR export finished: {data['product_name']}")
-        except Exception as e:
-            logger.error(f"DHR export failed after DB save: {e}")
-            QMessageBox.warning(
-                self,
-                "Partial Success",
-                f"DB save succeeded but export failed.\n\nLOT: {saved_lot}\n{e}",
-            )
+        # 출력(Excel+COM PDF)은 백그라운드 워커로 — UI 비차단 (PDCA #36).
+        # 위젯 값은 워커 시작 전에 스냅샷한다 (#33 규약).
+        effects_params = self.scan_effects_panel.get_data()
+        self._exporting_lot = saved_lot
+        self._exporting_product = data["product_name"]
+        start_worker(
+            self, self._run_export_pipeline,
+            args=(data, details_data, effects_params),
+            use_com=True,
+            busy_widgets=(self.save_btn,),
+            on_result=self._on_export_done,
+            on_failed=self._on_export_failed,
+        )
+
+    def _on_export_done(self, result: tuple) -> None:
+        excel_path, pdf_path = result
+        self._notify_save_result(self._exporting_lot, excel_path, pdf_path)
+        logger.info(f"DHR export finished: {self._exporting_product}")
+
+    def _on_export_failed(self, message: str) -> None:
+        logger.error(f"DHR export failed after DB save: {message}")
+        QMessageBox.warning(
+            self,
+            "Partial Success",
+            f"DB save succeeded but export failed.\n\nLOT: {self._exporting_lot}\n{message}",
+        )
 
     def _build_details_for_export(self, data: dict) -> list:
         """테이블의 자재 행을 export용 details_data로 변환."""
@@ -360,8 +376,13 @@ class ManualInputInterface(QScrollArea):
             QMessageBox.critical(self, "Error", f"DB save failed.\n{e}")
             return None
 
-    def _run_export_pipeline(self, data: dict, details_data: list) -> tuple:
-        """Excel + PDF 출력. Excel 실패 시 RuntimeError raise. PDF 실패 시 (excel, None)."""
+    def _run_export_pipeline(self, data: dict, details_data: list,
+                             effects_params: dict) -> tuple:
+        """Excel + PDF 출력 (워커 스레드 실행 — 위젯 접근 금지, PDCA #36).
+
+        Excel 실패 시 RuntimeError raise. PDF 실패 시 (excel, None).
+        effects_params는 호출부(UI 스레드)에서 스냅샷해 전달한다.
+        """
         from models.excel_exporter import ExcelExporter
         exporter = ExcelExporter()
         export_data = {
@@ -377,7 +398,6 @@ class ManualInputInterface(QScrollArea):
         excel_path = exporter.export_to_excel(export_data, include_work_time=data["include_time"])
         if not excel_path:
             raise RuntimeError("Excel export failed")
-        effects_params = self.scan_effects_panel.get_data()
         pdf_path = exporter.export_to_pdf(excel_path, effects_params)
         return excel_path, pdf_path
 

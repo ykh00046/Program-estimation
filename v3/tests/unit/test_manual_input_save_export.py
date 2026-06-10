@@ -35,6 +35,19 @@ sys.path.insert(0, PROJECT_ROOT)
 app = QApplication.instance() or QApplication(sys.argv)
 
 
+def _sync_start_worker(owner, fn, *, args=(), kwargs=None,
+                       on_result=None, on_failed=None, **_kw):
+    """start_worker 동기 스텁 (PDCA #36) — 배선만 검증, 스레드 미사용."""
+    try:
+        result = fn(*args, **(kwargs or {}))
+    except Exception as e:  # noqa: BLE001 — 워커 경계 모사
+        if on_failed:
+            on_failed(str(e))
+    else:
+        if on_result:
+            on_result(result)
+
+
 def _fill_row(panel, row, values):
     for col, value in enumerate(values):
         item = panel.table.item(row, col)
@@ -70,8 +83,12 @@ class _SaveExportTestBase(unittest.TestCase):
         self.panel = _make_panel_with_data()
         self.qmb_patcher = patch("ui.panels.manual_input_interface.QMessageBox")
         self.exp_patcher = patch("models.excel_exporter.ExcelExporter")
+        # PDCA #36: 출력은 워커로 발사됨 — 동기 스텁으로 배선만 검증
+        self.worker_patcher = patch(
+            "ui.panels.manual_input_interface.start_worker", new=_sync_start_worker)
         self.mock_qmb = self.qmb_patcher.start()
         self.mock_exp_cls = self.exp_patcher.start()
+        self.worker_patcher.start()
         self.mock_exp = self.mock_exp_cls.return_value
         self.mock_exp.export_to_excel.return_value = "/tmp/TEST-20260417-01.xlsx"
         self.mock_exp.export_to_pdf.return_value = "/tmp/TEST-20260417-01.pdf"
@@ -79,6 +96,7 @@ class _SaveExportTestBase(unittest.TestCase):
     def tearDown(self):
         self.qmb_patcher.stop()
         self.exp_patcher.stop()
+        self.worker_patcher.stop()
 
 
 # ---------------------------------------------------------------------------

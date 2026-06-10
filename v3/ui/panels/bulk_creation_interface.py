@@ -16,6 +16,7 @@ from config.config_manager import config
 from utils.logger import logger
 from utils.bulk_helpers import parse_date_cell, parse_bulk_entries, get_materials_from_table
 from ui.panels.dhr_validation import validate_bulk_product, validate_bulk_entries
+from ui.workers import start_worker
 from models.dhr_bulk_generator import DhrBulkGenerator
 from qfluentwidgets import CardWidget, LineEdit, CheckBox
 
@@ -176,12 +177,12 @@ class BulkCreationInterface(QScrollArea):
         action_layout.addWidget(record_view_btn)
         action_layout.addStretch()
 
-        generate_btn = StyledButton("일괄 생성 및 출력", "success")
-        generate_btn.clicked.connect(self._bulk_create)
-        generate_btn.setMinimumHeight(45)
-        generate_btn.setMinimumWidth(200)
-        generate_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
-        action_layout.addWidget(generate_btn)
+        self.generate_btn = StyledButton("일괄 생성 및 출력", "success")
+        self.generate_btn.clicked.connect(self._bulk_create)
+        self.generate_btn.setMinimumHeight(45)
+        self.generate_btn.setMinimumWidth(200)
+        self.generate_btn.setStyleSheet("font-size: 16px; font-weight: bold;")
+        action_layout.addWidget(self.generate_btn)
         return action_layout
 
     def _add_bulk_row(self):
@@ -260,33 +261,50 @@ class BulkCreationInterface(QScrollArea):
             QMessageBox.warning(self, "입력 오류", msg)
             return
 
+        # 위젯 값 스냅샷 (UI 스레드) — 워커 함수는 위젯 무접근 (#33 규약, PDCA #36)
         include_time = self.chk_include_time.isChecked()
+        scan_effects = self.scan_effects_panel.get_data()
+        signature_options = self.signature_panel.get_data()
+        worker_name = self.worker_name
         generator = DhrBulkGenerator(self.dhr_db, self.lot_manager)
 
-        try:
+        def job() -> tuple:
+            """N건 DB 저장 + 건별 Excel/COM PDF 출력 — 전체를 워커에서 실행."""
             count = generator.generate(
                 entries=entries,
                 product_name=product_name,
                 materials=materials,
-                worker=self.worker_name,
+                worker=worker_name,
                 include_time=include_time,
-                scan_effects=self.scan_effects_panel.get_data(),
-                signature_options=self.signature_panel.get_data(),
+                scan_effects=scan_effects,
+                signature_options=signature_options,
                 export=True
             )
-            export_failures = getattr(generator, "last_export_failures", [])
-            if export_failures:
-                preview = "\n".join(export_failures[:3])
-                more = ""
-                if len(export_failures) > 3:
-                    more = f"\n... (+{len(export_failures) - 3} more)"
-                QMessageBox.warning(
-                    self,
-                    "Partial Success",
-                    f"DB records saved: {count}\nExport failures: {len(export_failures)}\n\n{preview}{more}",
-                )
-            else:
-                QMessageBox.information(self, "Done", f"Bulk creation completed. (Total {count})")
-        except Exception as e:
-            logger.error(f"DHR 일괄 생성 실패: {e}")
-            QMessageBox.critical(self, "오류", f"일괄 생성 중 오류가 발생했습니다.\n{e}")
+            return count, list(generator.last_export_failures)
+
+        start_worker(
+            self, job,
+            use_com=True,
+            busy_widgets=(self.generate_btn,),
+            on_result=self._on_bulk_done,
+            on_failed=self._on_bulk_failed,
+        )
+
+    def _on_bulk_done(self, result: tuple) -> None:
+        count, export_failures = result
+        if export_failures:
+            preview = "\n".join(export_failures[:3])
+            more = ""
+            if len(export_failures) > 3:
+                more = f"\n... (+{len(export_failures) - 3} more)"
+            QMessageBox.warning(
+                self,
+                "Partial Success",
+                f"DB records saved: {count}\nExport failures: {len(export_failures)}\n\n{preview}{more}",
+            )
+        else:
+            QMessageBox.information(self, "Done", f"Bulk creation completed. (Total {count})")
+
+    def _on_bulk_failed(self, message: str) -> None:
+        logger.error(f"DHR 일괄 생성 실패: {message}")
+        QMessageBox.critical(self, "오류", f"일괄 생성 중 오류가 발생했습니다.\n{message}")
