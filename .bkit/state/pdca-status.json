@@ -1,10 +1,8 @@
 {
   "version": "3.0",
   "lastUpdated": "2026-06-10T00:00:00.000Z",
-  "activeFeatures": [
-    "async_worker_offload"
-  ],
-  "primaryFeature": "async_worker_offload",
+  "activeFeatures": [],
+  "primaryFeature": null,
   "features": {
     "code-quality-cycle5": {
       "phase": "archived",
@@ -105,15 +103,15 @@
       "automationLevel": 2
     },
     "async_worker_offload": {
-      "phase": "completed",
+      "phase": "archived",
       "cycle": 33,
       "matchRate": 99,
       "createdAt": "2026-06-10T00:00:00.000Z",
       "completedAt": "2026-06-10T00:00:00.000Z",
-      "summary": "PDCA #33 completed: Sheets backup + Excel COM PDF export offloaded to FunctionWorker(QThread). 5 paths async, 19 new tests, 295/295 pass. Check 89% -> Act (dialog closeEvent x2, busy guard) -> ~99%.",
-      "nextStep": "/pdca archive async_worker_offload",
+      "archivedTo": "v3/docs/archive/2026-06/async_worker_offload/",
+      "summary": "PDCA #33 archived: Sheets backup + Excel COM PDF export offloaded to FunctionWorker(QThread). 5 paths async, 19 new tests, 295/295 pass. Check 89% -> Act (dialog closeEvent x2, busy guard) -> ~99%.",
       "stateMachine": {
-        "currentState": "completed",
+        "currentState": "archived",
         "previousState": null,
         "stateHistory": [],
         "retryCount": 0,
