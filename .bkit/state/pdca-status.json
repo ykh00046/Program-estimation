@@ -1,10 +1,10 @@
 {
   "version": "3.0",
-  "lastUpdated": "2026-05-28T07:09:22.211Z",
+  "lastUpdated": "2026-06-10T00:00:00.000Z",
   "activeFeatures": [
-    "logic_function_refactor"
+    "async_worker_offload"
   ],
-  "primaryFeature": "logic_function_refactor",
+  "primaryFeature": "async_worker_offload",
   "features": {
     "code-quality-cycle5": {
       "phase": "archived",
@@ -82,11 +82,10 @@
       "automationLevel": 2
     },
     "logic_function_refactor": {
-      "phase": "in_progress",
+      "phase": "completed",
       "cycle": 15,
       "createdAt": "2026-05-21T00:00:00.000Z",
-      "summary": "PDCA #15 extended scope. Part A done (deleted dead recipe_manager_dialog.py, -518 LOC). Part B/C pending next session: RecordDetailDialog/RecordViewDialog init_ui refactor, _save_and_export helper extraction, dhr_bulk_generator test boost + refactor.",
-      "nextStep": "Read dhr_bulk_generator.py + record_view_dialog.py fully, then write Design doc, then execute Part B/C",
+      "summary": "PDCA #15 completed (plan/design/analysis/report all in docs/. Status file was stale; corrected 2026-06-10).",
       "stateMachine": {
         "currentState": "in_progress",
         "previousState": null,
@@ -103,6 +102,38 @@
         "iterationEfficiency": null
       },
       "phaseTimestamps": {},
+      "automationLevel": 2
+    },
+    "async_worker_offload": {
+      "phase": "completed",
+      "cycle": 33,
+      "matchRate": 99,
+      "createdAt": "2026-06-10T00:00:00.000Z",
+      "completedAt": "2026-06-10T00:00:00.000Z",
+      "summary": "PDCA #33 completed: Sheets backup + Excel COM PDF export offloaded to FunctionWorker(QThread). 5 paths async, 19 new tests, 295/295 pass. Check 89% -> Act (dialog closeEvent x2, busy guard) -> ~99%.",
+      "nextStep": "/pdca archive async_worker_offload",
+      "stateMachine": {
+        "currentState": "completed",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-10T00:00:00.000Z",
+        "design": "2026-06-10T00:00:00.000Z",
+        "do": "2026-06-10T00:00:00.000Z",
+        "check": "2026-06-10T00:00:00.000Z",
+        "report": "2026-06-10T00:00:00.000Z"
+      },
       "automationLevel": 2
     }
   },
@@ -188,6 +219,24 @@
       "action": "do-part-a",
       "timestamp": "2026-05-21T00:00:00.000Z",
       "result": "dead file deleted, -518 LOC, 65/65 tests pass"
+    },
+    {
+      "feature": "async_worker_offload",
+      "action": "plan",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success"
+    },
+    {
+      "feature": "async_worker_offload",
+      "action": "analyze",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "matchRate 89% -> Act fixes -> ~99%"
+    },
+    {
+      "feature": "async_worker_offload",
+      "action": "report",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success (295/295 tests)"
     }
   ],
   "stateMachine": {
