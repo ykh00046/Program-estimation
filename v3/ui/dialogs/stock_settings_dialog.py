@@ -127,6 +127,11 @@ class StockSettingsDialog(QDialog):
         self.po_btn.clicked.connect(self._open_purchase_orders)
         row.addWidget(self.po_btn)
 
+        self.reconcile_btn = QPushButton("정합성 검사")
+        self.reconcile_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.reconcile_btn.clicked.connect(self._open_reconcile)
+        row.addWidget(self.reconcile_btn)
+
         row.addStretch(1)
 
         self.cancel_btn = QPushButton("취소")
@@ -201,6 +206,12 @@ class StockSettingsDialog(QDialog):
         """발주 관리 다이얼로그를 열고, 입고 처리 등으로 재고가 바뀌면 테이블을 갱신한다."""
         from ui.dialogs.purchase_order_dialog import PurchaseOrderDialog
         PurchaseOrderDialog(self.data_manager, self).exec()
+        self._reload_after_change()
+
+    def _open_reconcile(self) -> None:
+        """재고 정합성 검사 다이얼로그 (PDCA #34). 소급 차감으로 재고가 바뀔 수 있어 재조회."""
+        from ui.dialogs.reconcile_dialog import ReconcileDialog
+        ReconcileDialog(self.data_manager, self).exec()
         self._reload_after_change()
 
     def _reload_after_change(self) -> None:

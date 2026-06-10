@@ -291,19 +291,29 @@ class MixingDatabaseManager(SqliteManagerBase):
 
     def upsert_material_stock(self, material_code: str, material_name: str,
                               current_stock: float, min_stock_threshold: float,
-                              unit: str = "g") -> bool:
+                              unit: str = "g", log_history: bool = False) -> bool:
         return self._stock.upsert_material_stock(
-            material_code, material_name, current_stock, min_stock_threshold, unit
+            material_code, material_name, current_stock, min_stock_threshold, unit,
+            log_history
         )
 
     def seed_material_stock_from_history(self) -> int:
         return self._stock.seed_material_stock_from_history()
 
-    def apply_consumption(self, consumption: List[Dict]) -> int:
-        return self._stock.apply_consumption(consumption)
+    def apply_consumption(self, consumption: List[Dict], note: str = "배합 자동 차감") -> int:
+        return self._stock.apply_consumption(consumption, note)
 
     def apply_adjustment(self, items: List[Dict], note: str = "재고 조정") -> int:
         return self._stock.apply_adjustment(items, note)
+
+    def check_ledger_consistency(self) -> List[Dict]:
+        return self._stock.check_ledger_consistency()
+
+    def record_reconcile_entry(self, material_code: str) -> bool:
+        return self._stock.record_reconcile_entry(material_code)
+
+    def find_undeducted_lots(self, start_date: str, end_date: str) -> List[Dict]:
+        return self._stock.find_undeducted_lots(start_date, end_date)
 
     def add_inbound(self, material_code: str, material_name: str, quantity: float,
                     unit: str = "g", note: str = "") -> bool:

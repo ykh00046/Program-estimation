@@ -15,6 +15,16 @@ MOVE_INBOUND = "INBOUND"   # 입고/매입 (+)
 MOVE_CONSUME = "CONSUME"   # 배합 자동 차감 (-)
 MOVE_ADJUST = "ADJUST"     # 수동 조정 (예약, 현재 미사용)
 
+# LOT 역추적 note 포맷 (PDCA #34) — 미차감 검출 LIKE 매칭의 단일 진실
+LOT_NOTE_SUFFIX_FMT = "(LOT {lot})"
+CONSUME_NOTE_FMT = "배합 자동 차감 (LOT {lot})"
+RETRO_NOTE_FMT = "소급 차감 (LOT {lot})"
+RECONCILE_NOTE = "정합성 보정(장부 정렬)"
+MANUAL_EDIT_NOTE = "수동 편집"
+
+# 장부 체인 비교 허용 오차 (부동소수 누적 대비)
+LEDGER_TOLERANCE = 1e-6
+
 
 class MaterialStockRepository(SqliteManagerBase):
     """`material_stock`(현재 상태) + `material_stock_history`(이동 로그) 전용 Repository."""
@@ -63,8 +73,13 @@ class MaterialStockRepository(SqliteManagerBase):
     @handle_exceptions(user_message="자재 재고 저장 중 오류가 발생했습니다.", default_return=False)
     def upsert_material_stock(self, material_code: str, material_name: str,
                               current_stock: float, min_stock_threshold: float,
-                              unit: str = "g") -> bool:
-        """material_code 기준 INSERT 또는 UPDATE."""
+                              unit: str = "g", log_history: bool = False) -> bool:
+        """material_code 기준 INSERT 또는 UPDATE.
+
+        log_history=True면 재고 변경분(delta≠0)을 ADJUST 이력으로 기록한다 (PDCA #34).
+        수동 편집 진입점(재고 설정 다이얼로그 → DataManager)에서만 켠다 —
+        기본 False로 기존 호출(시드/테스트 셋업)의 동작을 비트 보존한다.
+        """
         code = (material_code or material_name or "").strip()
         if not code:
             logger.warning("자재 재고 upsert 실패: material_code/이름이 비어 있음")
@@ -72,6 +87,10 @@ class MaterialStockRepository(SqliteManagerBase):
         current = max(0.0, float(current_stock or 0.0))
         threshold = max(0.0, float(min_stock_threshold or 0.0))
         with self.get_connection() as conn:
+            old = conn.execute(
+                "SELECT current_stock FROM material_stock WHERE material_code = ?", [code]
+            ).fetchone()
+            old_stock = float(old["current_stock"]) if old else 0.0
             conn.execute(
                 """
                 INSERT INTO material_stock
@@ -86,15 +105,23 @@ class MaterialStockRepository(SqliteManagerBase):
                 """,
                 [code, (material_name or code), current, threshold, (unit or "g")],
             )
+            # 수동 편집도 감사 추적 (PDCA #34) — 변경분(delta≠0)만 ADJUST 이력 기록.
+            # 설정 다이얼로그의 무변경 일괄 저장은 이력을 만들지 않는다.
+            delta = current - old_stock
+            if log_history and abs(delta) > LEDGER_TOLERANCE:
+                self._insert_history(conn, code, (material_name or code), MOVE_ADJUST,
+                                     delta, current, (unit or "g"), MANUAL_EDIT_NOTE)
             conn.commit()
         return True
 
     @handle_exceptions(user_message="자재 재고 차감 중 오류가 발생했습니다.", default_return=0)
-    def apply_consumption(self, consumption: List[Dict]) -> int:
+    def apply_consumption(self, consumption: List[Dict], note: str = "배합 자동 차감") -> int:
         """배합 사용량만큼 기존 재고를 차감한다(현재고는 0 미만으로 내려가지 않음).
 
         Args:
             consumption: ``[{"material_code": str, "actual_amount": float}, ...]``
+            note: CONSUME 이력 메모. LOT 역추적을 위해 ``CONSUME_NOTE_FMT`` 사용 권장
+                  (PDCA #34). 기본값은 기존 문자열(하위 호환).
 
         동작:
             - material_code 기준으로 사용량을 합산한다.
@@ -137,7 +164,7 @@ class MaterialStockRepository(SqliteManagerBase):
                     name = after["material_name"] if after else code
                     unit = after["unit"] if after else "g"
                     self._insert_history(
-                        conn, code, name, MOVE_CONSUME, -amount, stock_after, unit, "배합 자동 차감"
+                        conn, code, name, MOVE_CONSUME, -amount, stock_after, unit, note
                     )
             conn.commit()
         logger.debug(f"재고 자동 차감: {updated}건 갱신 (요청 {len(totals)}종)")
@@ -295,6 +322,102 @@ class MaterialStockRepository(SqliteManagerBase):
         logger.debug(f"입출고 이력 조회: {len(rows)}건 (자재={code or '전체'})")
         return rows
 
+    # ------------------------------------------------------------------
+    # 정합성 검사 / 보정 (PDCA #34 inventory_reconcile)
+    # ------------------------------------------------------------------
+
+    _LEDGER_QUERY = (
+        "SELECT s.material_code, s.material_name, s.current_stock, s.unit, "
+        "       (SELECT h.stock_after FROM material_stock_history h "
+        "        WHERE h.material_code = s.material_code "
+        "        ORDER BY h.created_at DESC, h.id DESC LIMIT 1) AS ledger_stock "
+        "FROM material_stock s ORDER BY s.material_name ASC"
+    )
+
+    @handle_exceptions(user_message="재고 정합성 검사 중 오류가 발생했습니다.", default_return=[])
+    def check_ledger_consistency(self, tolerance: float = LEDGER_TOLERANCE) -> List[Dict]:
+        """현재고와 장부(최근 이력 stock_after)의 불일치 자재를 반환한다.
+
+        불변식: current_stock == 최근 history.stock_after (이력 없으면 0).
+        clamp(MAX 0) 때문에 Σquantity replay는 부정확하므로 stock_after 체인을 기준으로 한다.
+
+        Returns: ``[{material_code, material_name, current_stock, ledger_stock, drift, unit}]``
+                 (drift = current_stock - ledger_stock, |drift| > tolerance인 자재만)
+        """
+        issues: List[Dict] = []
+        with self.get_connection() as conn:
+            for row in conn.execute(self._LEDGER_QUERY).fetchall():
+                current = float(row["current_stock"] or 0.0)
+                ledger = float(row["ledger_stock"]) if row["ledger_stock"] is not None else 0.0
+                drift = current - ledger
+                if abs(drift) > tolerance:
+                    issues.append({
+                        "material_code": row["material_code"],
+                        "material_name": row["material_name"],
+                        "current_stock": current,
+                        "ledger_stock": ledger,
+                        "drift": round(drift, 6),
+                        "unit": row["unit"] or "g",
+                    })
+        logger.debug(f"재고 정합성 검사: 불일치 {len(issues)}건")
+        return issues
+
+    @handle_exceptions(user_message="장부 정렬 중 오류가 발생했습니다.", default_return=False)
+    def record_reconcile_entry(self, material_code: str, note: str = RECONCILE_NOTE) -> bool:
+        """장부 체인을 현재고에 정렬하는 ADJUST 이력 1건을 기록한다 (재고는 불변).
+
+        현재고가 사용자가 보는 진실이므로 재고를 바꾸지 않고 이력만 추가해
+        '현재고 == 최근 stock_after' 불변식을 복구한다 (PDCA #34 설계 결정 2).
+        Returns: 이력 기록 시 True, drift가 허용 오차 이내면 False.
+        """
+        code = (material_code or "").strip()
+        if not code:
+            return False
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT material_name, current_stock, unit FROM material_stock "
+                "WHERE material_code = ?", [code]
+            ).fetchone()
+            if not row:
+                logger.warning(f"장부 정렬 실패: 자재 없음 ({code})")
+                return False
+            current = float(row["current_stock"] or 0.0)
+            last = conn.execute(
+                "SELECT stock_after FROM material_stock_history WHERE material_code = ? "
+                "ORDER BY created_at DESC, id DESC LIMIT 1", [code]
+            ).fetchone()
+            ledger = float(last["stock_after"]) if last else 0.0
+            drift = current - ledger
+            if abs(drift) <= LEDGER_TOLERANCE:
+                return False
+            self._insert_history(conn, code, row["material_name"], MOVE_ADJUST,
+                                 drift, current, row["unit"] or "g", note)
+            conn.commit()
+        logger.info(f"장부 정렬: {code} drift {drift:+g} 이력 기록 (재고 불변)")
+        return True
+
+    @handle_exceptions(user_message="미차감 기록 검사 중 오류가 발생했습니다.", default_return=[])
+    def find_undeducted_lots(self, start_date: str, end_date: str) -> List[Dict]:
+        """기간 내 배합 기록 중 차감 마커가 이력에 없는 LOT 목록 (PDCA #34 검사 2).
+
+        cross-domain *읽기 전용* 조회 — mixing_records는 진단 목적으로만 읽으며
+        수정은 MixingRecordRepository 영역이다. CONSUME(자동)·ADJUST(소급) 어느 쪽이든
+        note에 '(LOT {lot})' 마커가 있으면 차감된 것으로 간주한다(중복 적용 방지).
+        """
+        query = (
+            "SELECT r.product_lot, r.recipe_name, r.work_date, r.total_amount "
+            "FROM mixing_records r "
+            "WHERE r.work_date >= ? AND r.work_date <= ? "
+            "  AND NOT EXISTS ("
+            "      SELECT 1 FROM material_stock_history h "
+            "      WHERE h.note LIKE '%(LOT ' || r.product_lot || ')%') "
+            "ORDER BY r.work_date DESC, r.product_lot DESC"
+        )
+        with self.get_connection() as conn:
+            rows = [dict(row) for row in conn.execute(query, [start_date, end_date]).fetchall()]
+        logger.debug(f"미차감 의심 LOT 검사: {len(rows)}건 ({start_date}~{end_date})")
+        return rows
+
     @staticmethod
     def _insert_history(conn, material_code: str, material_name: str, change_type: str,
                         quantity: float, stock_after: float, unit: str, note: str) -> None:
@@ -334,4 +457,8 @@ class MaterialStockRepository(SqliteManagerBase):
         return inserted
 
 
-__all__ = ["MaterialStockRepository", "MOVE_INBOUND", "MOVE_CONSUME", "MOVE_ADJUST"]
+__all__ = [
+    "MaterialStockRepository", "MOVE_INBOUND", "MOVE_CONSUME", "MOVE_ADJUST",
+    "LOT_NOTE_SUFFIX_FMT", "CONSUME_NOTE_FMT", "RETRO_NOTE_FMT",
+    "RECONCILE_NOTE", "MANUAL_EDIT_NOTE", "LEDGER_TOLERANCE",
+]

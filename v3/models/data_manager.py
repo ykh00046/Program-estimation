@@ -14,6 +14,7 @@ from config.settings import LOT_FILE, RECIPE_FILE
 from models.backup.google_sheets_backup import GoogleSheetsBackup
 from models.database import MixingDatabaseManager
 from models.inventory_alert import MaterialAlert, evaluate_inventory_alerts
+from models.repositories.material_stock_repository import CONSUME_NOTE_FMT, RETRO_NOTE_FMT
 from models.lot_manager import LotManager
 from models.lot_utils import next_lot
 from utils.logger import logger
@@ -225,7 +226,7 @@ class DataManager:
             product_lot = record_data['product_lot']
             if auto_backup:
                 self._backup_to_google_sheets(record_data, details_data)
-            self._deduct_inventory(details_data)
+            self._deduct_inventory(details_data, product_lot)
             logger.info(f"배합 저장: LOT {product_lot}")
 
             # 3. Export disabled (use record view)
@@ -236,10 +237,11 @@ class DataManager:
             logger.critical(f"배합 기록 저장 실패: {e}", exc_info=True)
             raise
 
-    def _deduct_inventory(self, details: List[Dict]) -> None:
+    def _deduct_inventory(self, details: List[Dict], product_lot: str = "") -> None:
         """배합 저장 후 자재 재고를 자동 차감한다(설정 on일 때, best-effort).
 
         차감 실패는 생산 기록 저장을 롤백시키지 않는다(생산 기록이 1순위 진실).
+        CONSUME 이력 note에 LOT 마커를 남겨 미차감 검출(PDCA #34)을 가능하게 한다.
         """
         if not self.get_auto_deduct_on_save():
             return
@@ -252,11 +254,53 @@ class DataManager:
                 }
                 for d in (details or [])
             ]
-            updated = self.db_manager.apply_consumption(consumption)
+            note = (CONSUME_NOTE_FMT.format(lot=product_lot)
+                    if product_lot else "배합 자동 차감")
+            updated = self.db_manager.apply_consumption(consumption, note)
             if updated:
                 logger.info(f"재고 자동 차감 완료: {updated}건")
         except Exception as e:  # noqa: BLE001 — 차감 실패가 저장을 막지 않음
             logger.warning(f"재고 자동 차감 실패(저장은 정상): {e}")
+
+    # ------------------------------------------------------------------
+    # 재고 정합성 검사 / 보정 (PDCA #34 inventory_reconcile)
+    # ------------------------------------------------------------------
+
+    def check_ledger_consistency(self) -> List[Dict]:
+        """현재고 vs 장부(최근 stock_after) 불일치 자재 목록."""
+        return self.db_manager.check_ledger_consistency()
+
+    def record_reconcile_entry(self, material_code: str) -> bool:
+        """장부 체인을 현재고에 정렬 (재고 불변, ADJUST 이력 1건)."""
+        return self.db_manager.record_reconcile_entry(material_code)
+
+    def find_undeducted_lots(self, start_date: str, end_date: str) -> List[Dict]:
+        """기간 내 미차감 의심 배합 LOT 목록."""
+        return self.db_manager.find_undeducted_lots(start_date, end_date)
+
+    def retro_deduct_lots(self, lots: List[str]) -> int:
+        """선택 LOT들의 자재 사용량을 소급 차감한다 (ADJUST, note에 LOT 마커).
+
+        Returns: 실제 차감이 적용된 LOT 수 (기록 없거나 자재 미매칭 LOT은 스킵).
+        """
+        applied = 0
+        for lot in lots or []:
+            record = self.db_manager.get_mixing_record_by_lot(lot)
+            if not record:
+                logger.warning(f"소급 차감 스킵: 기록 없음 (LOT {lot})")
+                continue
+            details = self.db_manager.get_mixing_details(record['id'])
+            items = [
+                {"material_code": self._norm_code(dict(d)),
+                 "delta": -float(dict(d).get("actual_amount") or 0.0)}
+                for d in (details or [])
+            ]
+            updated = self.db_manager.apply_adjustment(
+                items, note=RETRO_NOTE_FMT.format(lot=lot))
+            if updated:
+                applied += 1
+                logger.info(f"소급 차감 완료: LOT {lot} ({updated}종)")
+        return applied
 
     def apply_adjustment(self, items: List[Dict], note: str = "재고 조정") -> int:
         """부호 있는 델타로 자재 재고를 조정하고 MOVE_ADJUST 이력을 기록 (PDCA #31)."""
@@ -597,9 +641,14 @@ class DataManager:
         min_stock_threshold: float,
         unit: str = "g",
     ) -> bool:
-        """자재 재고/임계값 저장 (material_code 기준 upsert)."""
+        """자재 재고/임계값 저장 (material_code 기준 upsert).
+
+        DataManager 경로는 수동 편집 진입점(재고 설정 다이얼로그)이므로
+        변경분을 ADJUST 이력으로 기록한다 (log_history=True, PDCA #34).
+        """
         return self.db_manager.upsert_material_stock(
-            material_code, material_name, current_stock, min_stock_threshold, unit
+            material_code, material_name, current_stock, min_stock_threshold, unit,
+            log_history=True
         )
 
     def seed_material_stock_from_history(self) -> int:
