@@ -197,6 +197,38 @@
         "report": "2026-06-10T00:00:00.000Z"
       },
       "automationLevel": 2
+    },
+    "dhr_export_async": {
+      "phase": "archived",
+      "cycle": 36,
+      "matchRate": 99,
+      "createdAt": "2026-06-10T00:00:00.000Z",
+      "completedAt": "2026-06-10T00:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-06/dhr_export_async/",
+      "summary": "PDCA #36 archived: DHR manual-input export pipeline + bulk generation moved to workers (#33 leftover closed). Zero UI-blocking heavy paths remain. 346/346 tests, Match 99% first pass.",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-10T00:00:00.000Z",
+        "design": "2026-06-10T00:00:00.000Z",
+        "do": "2026-06-10T00:00:00.000Z",
+        "check": "2026-06-10T00:00:00.000Z",
+        "report": "2026-06-10T00:00:00.000Z"
+      },
+      "automationLevel": 2
     }
   },
   "pipeline": {
@@ -329,6 +361,18 @@
       "action": "archive",
       "timestamp": "2026-06-10T00:00:00.000Z",
       "result": "success (341/341 tests, b68bd08)"
+    },
+    {
+      "feature": "dhr_export_async",
+      "action": "analyze",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "matchRate 99% first pass"
+    },
+    {
+      "feature": "dhr_export_async",
+      "action": "archive",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success (346/346 tests, 60e2ed7)"
     }
   ],
   "stateMachine": {
