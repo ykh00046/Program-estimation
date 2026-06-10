@@ -133,6 +133,38 @@
         "report": "2026-06-10T00:00:00.000Z"
       },
       "automationLevel": 2
+    },
+    "inventory_reconcile": {
+      "phase": "archived",
+      "cycle": 34,
+      "matchRate": 99.5,
+      "createdAt": "2026-06-10T00:00:00.000Z",
+      "completedAt": "2026-06-10T00:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-06/inventory_reconcile/",
+      "summary": "PDCA #34 archived: ledger consistency check (current vs last stock_after) + stock-invariant reconcile entry + LOT-marker undeducted detection/retro deduction. upsert log_history opt-in audit. 321/321 tests, Match ~99.5% first pass.",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-10T00:00:00.000Z",
+        "design": "2026-06-10T00:00:00.000Z",
+        "do": "2026-06-10T00:00:00.000Z",
+        "check": "2026-06-10T00:00:00.000Z",
+        "report": "2026-06-10T00:00:00.000Z"
+      },
+      "automationLevel": 2
     }
   },
   "pipeline": {
@@ -235,6 +267,24 @@
       "action": "report",
       "timestamp": "2026-06-10T00:00:00.000Z",
       "result": "success (295/295 tests)"
+    },
+    {
+      "feature": "async_worker_offload",
+      "action": "archive",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success (v3/docs/archive/2026-06/)"
+    },
+    {
+      "feature": "inventory_reconcile",
+      "action": "analyze",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "matchRate ~99.5% first pass"
+    },
+    {
+      "feature": "inventory_reconcile",
+      "action": "archive",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success (321/321 tests, f6c2dcc)"
     }
   ],
   "stateMachine": {
