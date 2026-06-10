@@ -47,6 +47,15 @@
 | [dhr_export_async.analysis.md](./dhr_export_async/dhr_export_async.analysis.md) | docs/03-analysis/ (루트) | Analysis (Match **99%** 1차 통과) |
 | [dhr_export_async.report.md](./dhr_export_async/dhr_export_async.report.md) | docs/04-report/ (루트) | Report |
 
+## PDCA #37 (Recipe SSOT Unification — 배합 레시피 DB 일원화 + 편집 화면)
+
+| 문서 | 원래 위치 | 단계 |
+| --- | --- | --- |
+| [recipe_ssot_unification.plan.md](./recipe_ssot_unification/recipe_ssot_unification.plan.md) | docs/01-plan/features/ (루트) | Plan |
+| [recipe_ssot_unification.design.md](./recipe_ssot_unification/recipe_ssot_unification.design.md) | docs/02-design/features/ (루트) | Design |
+| [recipe_ssot_unification.analysis.md](./recipe_ssot_unification/recipe_ssot_unification.analysis.md) | docs/03-analysis/ (루트) | Analysis (Match **100%** 1차 통과) |
+| [recipe_ssot_unification.report.md](./recipe_ssot_unification/recipe_ssot_unification.report.md) | docs/04-report/ (루트) | Report |
+
 ## 핵심 성과
 
 - **자재 재고 임계값 알림 (#27)**: `material_stock` 테이블 + 재고 설정 다이얼로그 + 대시보드 재고 부족 알림 카드. 임계값 이하 자재를 KPI 상단에 경고 표시. 전체 스위트 201 passed (Match 100%). 첫 사용자 가치 기능(#25 dashboard_export) 라인의 후속.
@@ -54,4 +63,5 @@
 - **재고 정합성 검사·보정 (#34)**: 장부 체인 검사(현재고 vs stock_after) + 재고 불변 장부 정렬 + LOT 마커 기반 미차감 검출/소급 차감. 수동 편집 ADJUST 이력화(log_history opt-in). 321 passed (+26), 커밋 f6c2dcc.
 - **백업 견고화 (#35)**: JSONL 재시도 큐 + 헤더 관용 매핑(시트가 진실) + BACKUP_COLUMNS SSOT. 백업 실패가 데이터 누락으로 이어지지 않음. 341 passed (+20), 커밋 b68bd08. **2026-06-10 전체 검토 High 3건(#33/#34/#35) 전부 종결.**
 - **DHR 출력 비동기화 (#36)**: 수기 입력(출력만)·일괄 생성(전체)을 워커로 — #33 잔여 종결, **UI 스레드를 막는 무거운 작업 경로 0 달성**. 346 passed (+5), 커밋 60e2ed7.
-- **아카이브 날짜**: 2026-06-01 (#27), 2026-06-10 (#33, #34, #35, #36)
+- **배합 레시피 SSOT 일원화 (#37)**: 레시피 진실을 Excel 파일 → DB(recipes 테이블)로 전환(빈 테이블 1회 자동 시드), 죽어 있던 RecipeRepository 부활, 신규 RecipeEditDialog로 **처음으로 프로그램 안에서 배합 레시피 편집 가능**. 364 passed (+18), 커밋 8539d8c.
+- **아카이브 날짜**: 2026-06-01 (#27), 2026-06-10 (#33, #34, #35, #36, #37)

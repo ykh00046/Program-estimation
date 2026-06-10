@@ -229,6 +229,38 @@
         "report": "2026-06-10T00:00:00.000Z"
       },
       "automationLevel": 2
+    },
+    "recipe_ssot_unification": {
+      "phase": "archived",
+      "cycle": 37,
+      "matchRate": 100,
+      "createdAt": "2026-06-10T00:00:00.000Z",
+      "completedAt": "2026-06-10T00:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-06/recipe_ssot_unification/",
+      "summary": "PDCA #37 archived: mixing recipe SSOT moved from Excel to DB recipes table (auto-seed once when empty), revived dead RecipeRepository, new RecipeEditDialog for in-app recipe CRUD. 364/364 tests, Match 100% first pass.",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-10T00:00:00.000Z",
+        "design": "2026-06-10T00:00:00.000Z",
+        "do": "2026-06-10T00:00:00.000Z",
+        "check": "2026-06-10T00:00:00.000Z",
+        "report": "2026-06-10T00:00:00.000Z"
+      },
+      "automationLevel": 2
     }
   },
   "pipeline": {
@@ -373,6 +405,18 @@
       "action": "archive",
       "timestamp": "2026-06-10T00:00:00.000Z",
       "result": "success (346/346 tests, 60e2ed7)"
+    },
+    {
+      "feature": "recipe_ssot_unification",
+      "action": "analyze",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "matchRate 100% first pass"
+    },
+    {
+      "feature": "recipe_ssot_unification",
+      "action": "archive",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success (364/364 tests, 8539d8c)"
     }
   ],
   "stateMachine": {
