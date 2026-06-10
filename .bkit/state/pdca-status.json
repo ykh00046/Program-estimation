@@ -165,6 +165,38 @@
         "report": "2026-06-10T00:00:00.000Z"
       },
       "automationLevel": 2
+    },
+    "backup_hardening": {
+      "phase": "archived",
+      "cycle": 35,
+      "matchRate": 100,
+      "createdAt": "2026-06-10T00:00:00.000Z",
+      "completedAt": "2026-06-10T00:00:00.000Z",
+      "archivedTo": "v3/docs/archive/2026-06/backup_hardening/",
+      "summary": "PDCA #35 archived: Sheets backup hardening — JSONL retry queue (pending-first flush), header-tolerant remapping (sheet order wins when set equal), BACKUP_COLUMNS SSOT + parity test. 341/341 tests, Match 100% first pass. Review High issues #33/#34/#35 all closed.",
+      "stateMachine": {
+        "currentState": "archived",
+        "previousState": null,
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": null,
+        "conventionCompliance": null,
+        "apiCompliance": null,
+        "cycleTimeMs": null,
+        "iterationEfficiency": null
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-10T00:00:00.000Z",
+        "design": "2026-06-10T00:00:00.000Z",
+        "do": "2026-06-10T00:00:00.000Z",
+        "check": "2026-06-10T00:00:00.000Z",
+        "report": "2026-06-10T00:00:00.000Z"
+      },
+      "automationLevel": 2
     }
   },
   "pipeline": {
@@ -285,6 +317,18 @@
       "action": "archive",
       "timestamp": "2026-06-10T00:00:00.000Z",
       "result": "success (321/321 tests, f6c2dcc)"
+    },
+    {
+      "feature": "backup_hardening",
+      "action": "analyze",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "matchRate 100% first pass"
+    },
+    {
+      "feature": "backup_hardening",
+      "action": "archive",
+      "timestamp": "2026-06-10T00:00:00.000Z",
+      "result": "success (341/341 tests, b68bd08)"
     }
   ],
   "stateMachine": {
