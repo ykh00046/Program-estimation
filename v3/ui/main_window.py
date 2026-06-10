@@ -19,6 +19,7 @@ from ui.controllers import (
     DhrSettingsSyncController,
 )
 from ui.sidebar_hover_controller import SidebarHoverController
+from ui.workers import start_worker, wait_for_workers
 from typing import Tuple
 
 from models.data_manager import DataManager
@@ -185,6 +186,7 @@ class MainWindow(FluentWindow):
             validate_inputs=self._validate_inputs,
             on_validation_error=self._handle_save_validation_error,
             on_success=self._handle_save_success,
+            backup_runner=self._start_backup_worker,
         )
 
     def _setup_dhr_settings_sync(self) -> None:
@@ -219,6 +221,39 @@ class MainWindow(FluentWindow):
     def _update_backup_status(self):
         """Google Sheets 백업 상태를 업데이트합니다."""
         self.status_controller.update_backup_status()
+
+    # ------------------------------------------------------------------
+    # Google Sheets 백업 워커 (PDCA #33)
+    # ------------------------------------------------------------------
+
+    def _start_backup_worker(self, product_lot: str) -> None:
+        """저장 직후 Sheets 백업을 백그라운드로 실행합니다 (UI 비차단)."""
+        cfg = self.data_manager.google_sheets_config
+        if not (cfg.is_backup_enabled() and cfg.is_auto_backup_on_save()):
+            return
+        start_worker(
+            self, self.data_manager.backup_lot_to_sheets,
+            args=(product_lot,),
+            on_result=self._on_backup_done,
+            on_failed=self._on_backup_failed,
+        )
+
+    def _on_backup_done(self, result: Tuple) -> None:
+        success, msg = result
+        self._update_backup_status()
+        if success:
+            self._set_status_message("Google Sheets 백업 완료")
+        else:
+            self._set_status_message(f"Google Sheets 백업 실패: {msg}")
+
+    def _on_backup_failed(self, message: str) -> None:
+        self._update_backup_status()
+        self._set_status_message(f"Google Sheets 백업 실패: {message}")
+
+    def closeEvent(self, event):
+        """종료 시 잔여 백그라운드 워커를 대기합니다 (PDCA #33)."""
+        wait_for_workers(self)
+        super().closeEvent(event)
 
     def _set_status_message(self, message: str) -> None:
         if hasattr(self, "status_controller"):

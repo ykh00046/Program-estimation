@@ -34,6 +34,19 @@ from ui.record_ops_controller import RecordOpsController
 app = QApplication.instance() or QApplication(sys.argv)
 
 
+def _sync_start_worker(owner, fn, *, args=(), kwargs=None,
+                       on_result=None, on_failed=None, **_kw):
+    """start_worker 동기 스텁 (PDCA #33) — 배선만 검증, 스레드 미사용."""
+    try:
+        result = fn(*args, **(kwargs or {}))
+    except Exception as e:  # noqa: BLE001 — 워커 경계 모사
+        if on_failed:
+            on_failed(str(e))
+    else:
+        if on_result:
+            on_result(result)
+
+
 def _make_dm():
     dm = MagicMock()
     dm.get_mixing_records.return_value = []
@@ -50,7 +63,8 @@ class TestRecordViewDialogSmoke(unittest.TestCase):
 
     def test_export_and_delete_delegate_to_controller(self):
         dm = _make_dm()
-        with patch("ui.record_view_dialog.QMessageBox") as MB:
+        with patch("ui.record_view_dialog.start_worker", new=_sync_start_worker), \
+                patch("ui.record_view_dialog.QMessageBox") as MB:
             MB.Yes, MB.No = 1, 0
             MB.question.return_value = 1  # Yes (삭제 확인/폴더 질문)
             dlg = RecordViewDialog(dm, {"dpi": 250})

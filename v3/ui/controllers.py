@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from utils.logger import logger
 
@@ -169,6 +169,7 @@ class SaveController:
         validate_inputs,
         on_validation_error,
         on_success,
+        backup_runner: Optional[Callable[[str], None]] = None,
     ):
         self.data_manager = data_manager
         self.recipe_panel = recipe_panel
@@ -179,6 +180,8 @@ class SaveController:
         self.validate_inputs = validate_inputs
         self.on_validation_error = on_validation_error
         self.on_success = on_success
+        # PDCA #33: 주입 시 동기 백업 대신 호출자가 비동기 백업을 수행
+        self.backup_runner = backup_runner
 
     def _collect_payload(self) -> dict:
         work_data = self.work_info_panel.get_data()
@@ -202,5 +205,8 @@ class SaveController:
             return
 
         payload = self._collect_payload()
-        lot = self.data_manager.save_record(**payload)
+        lot = self.data_manager.save_record(
+            **payload, auto_backup=self.backup_runner is None)
         self.on_success(lot)
+        if self.backup_runner is not None:
+            self.backup_runner(lot)

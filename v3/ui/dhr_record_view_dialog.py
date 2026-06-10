@@ -11,11 +11,51 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDate
 
+from typing import Dict, Optional
+
 from models.dhr_database import DhrDatabaseManager
 from models.excel_exporter import ExcelExporter
 from ui.panels.scan_effects_panel import ScanEffectsPanel
 from ui.panels.signature_panel import SignaturePanel
+from ui.workers import start_worker, wait_for_workers
 from utils.logger import logger
+
+
+def _run_dhr_export_job(job: Dict) -> Optional[str]:
+    """DHR 실적서 출력 작업 (워커 스레드 실행 — 위젯 접근 금지, PDCA #33).
+
+    서명 합성 → Excel 출력 → PDF 변환 → 임시 서명 파일 정리.
+    성공 시 최종 PDF 경로, 실패 시 None 반환.
+    """
+    from models.image_processor import ImageProcessor
+
+    img_processor = ImageProcessor(
+        resources_path=job['resources_path'], config=job['signature_cfg'])
+    success, msg = img_processor.create_signed_image(
+        job['base_image_path'], job['signed_image_path'], job['worker'],
+        debug_path=job['debug_path'],
+    )
+    image_to_embed = job['signed_image_path'] if success else job['base_image_path']
+    if not success:
+        logger.warning(f"서명 이미지 생성 실패: {msg}. 기본 이미지로 대체합니다.")
+
+    exporter = ExcelExporter()
+    excel_file = exporter.export_to_excel(
+        job['export_data'],
+        include_image=True,
+        image_path=image_to_embed,
+        include_work_time=True,
+    )
+
+    if success and os.path.exists(job['signed_image_path']):
+        try:
+            os.remove(job['signed_image_path'])
+        except (OSError, IOError):
+            pass
+
+    if not excel_file:
+        return None
+    return exporter.export_to_pdf(excel_file, job['effects_params'])
 
 
 class DhrRecordDetailDialog(QDialog):
@@ -73,39 +113,31 @@ class DhrRecordDetailDialog(QDialog):
 
         # 버튼
         button_layout = QHBoxLayout()
-        export_btn = QPushButton("엑셀/PDF 출력")
-        export_btn.clicked.connect(self.export_report)
-        button_layout.addWidget(export_btn)
+        self.export_btn = QPushButton("엑셀/PDF 출력")
+        self.export_btn.clicked.connect(self.export_report)
+        button_layout.addWidget(self.export_btn)
         close_btn = QPushButton("닫기")
         close_btn.clicked.connect(self.close)
         button_layout.addWidget(close_btn)
         layout.addLayout(button_layout)
         self.setLayout(layout)
 
-    def export_report(self):
-        """엑셀/PDF 출력"""
-        try:
-            from models.image_processor import ImageProcessor
-            from config.config_manager import config
-            
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            resources_path = os.path.join(base_dir, 'resources', 'signature')
-            base_image_path = os.path.join(resources_path, 'image.jpeg')
-            
-            signature_cfg = config.get('signature', {})
-            img_processor = ImageProcessor(resources_path=resources_path, config=signature_cfg)
-            signed_image_path = os.path.join(base_dir, 'resources', f"temp_signed_{self.record_data['worker']}.png")
-            debug_path = os.path.join(base_dir, '실적서', 'debug_images')
+    def _collect_export_job(self) -> Dict:
+        """워커에 넘길 출력 작업 페이로드 (UI 스레드에서 위젯/설정 스냅샷)."""
+        from config.config_manager import config
 
-            success, msg = img_processor.create_signed_image(
-                base_image_path, signed_image_path, self.record_data['worker'], debug_path=debug_path
-            )
-            image_to_embed = signed_image_path if success else base_image_path
-            if not success:
-                logger.warning(f"서명 이미지 생성 실패: {msg}. 기본 이미지로 대체합니다.")
-
-            # Excel 출력 데이터 준비
-            export_data = {
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        resources_path = os.path.join(base_dir, 'resources', 'signature')
+        return {
+            'resources_path': resources_path,
+            'base_image_path': os.path.join(resources_path, 'image.jpeg'),
+            'signed_image_path': os.path.join(
+                base_dir, 'resources', f"temp_signed_{self.record_data['worker']}.png"),
+            'debug_path': os.path.join(base_dir, '실적서', 'debug_images'),
+            'signature_cfg': config.get('signature', {}),
+            'worker': self.record_data['worker'],
+            'effects_params': self.effects_params,
+            'export_data': {
                 'product_lot': self.record_data['product_lot'],
                 'worker': self.record_data['worker'],
                 'total_amount': self.record_data['total_amount'],
@@ -113,33 +145,37 @@ class DhrRecordDetailDialog(QDialog):
                 'work_time': self.record_data.get('work_time', ''),
                 'scale': self.record_data.get('scale', ''),
                 'materials': [dict(d) for d in self.details_data]
-            }
+            },
+        }
 
-            exporter = ExcelExporter()
-            excel_file = exporter.export_to_excel(
-                export_data,
-                include_image=True,
-                image_path=image_to_embed,
-                include_work_time=True
-            )
+    def export_report(self):
+        """엑셀/PDF 출력 (백그라운드 워커, PDCA #33)"""
+        job = self._collect_export_job()
+        start_worker(
+            self, _run_dhr_export_job, args=(job,),
+            use_com=True,
+            busy_widgets=(self.export_btn,),
+            on_result=self._on_export_done,
+            on_failed=self._on_export_failed,
+        )
 
-            if success and os.path.exists(signed_image_path):
-                try:
-                    os.remove(signed_image_path)
-                except (OSError, IOError):
-                    pass
-
-            if excel_file:
-                pdf_file = exporter.export_to_pdf(excel_file, self.effects_params)
-                if pdf_file:
-                    QMessageBox.information(self, "출력 완료", f"엑셀/PDF 파일이 생성되었습니다.\n\nLOT: {self.record_data['product_lot']}")
-                    logger.info(f"DHR 실적서 출력 완료: {pdf_file}")
-                    return
-            
+    def _on_export_done(self, pdf_file: Optional[str]) -> None:
+        if pdf_file:
+            QMessageBox.information(
+                self, "출력 완료",
+                f"엑셀/PDF 파일이 생성되었습니다.\n\nLOT: {self.record_data['product_lot']}")
+            logger.info(f"DHR 실적서 출력 완료: {pdf_file}")
+        else:
             QMessageBox.warning(self, "출력 실패", "엑셀/PDF 파일 생성에 실패했습니다.")
-        except (OSError, IOError) as e:
-            logger.error(f"DHR 실적서 출력 오류: {e}")
-            QMessageBox.critical(self, "오류", f"실적서 출력 중 오류가 발생했습니다.\n{str(e)}")
+
+    def _on_export_failed(self, message: str) -> None:
+        logger.error(f"DHR 실적서 출력 오류: {message}")
+        QMessageBox.critical(self, "오류", f"실적서 출력 중 오류가 발생했습니다.\n{message}")
+
+    def closeEvent(self, event):
+        """닫기 시 잔여 출력 워커 대기 — COM 워커 조기 파괴 방지 (PDCA #33)."""
+        wait_for_workers(self)
+        super().closeEvent(event)
 
 
 class DhrRecordViewDialog(QDialog):

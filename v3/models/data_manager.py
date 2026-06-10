@@ -112,33 +112,42 @@ class DataManager:
             })
         return details_data
 
+    @staticmethod
+    def _build_backup_records(record_data: Dict, details: List[Dict]) -> List[Dict]:
+        """Sheets 백업용 행 목록(기록+상세 결합)을 만든다 (PDCA #33 추출)."""
+        records_for_backup = []
+        for detail_item in details:
+            combined_record = {
+                '제품LOT': record_data.get('product_lot', ''),
+                '레시피명': record_data.get('recipe_name', ''),
+                '작업자': record_data.get('worker', ''),
+                '작업일자': record_data.get('work_date', ''),
+                '작업시간': record_data.get('work_time', ''),
+                '총배합량': record_data.get('total_amount', 0.0),
+                '스케일': record_data.get('scale', ''),
+                '품목코드': detail_item.get('material_code', ''),
+                '품목명': detail_item.get('material_name', ''),
+                '자재LOT': detail_item.get('material_lot', ''),
+                '배합비율': detail_item.get('ratio', 0.0),
+                '이론량': detail_item.get('theory_amount', 0.0),
+                '실제량': detail_item.get('actual_amount', 0.0),
+                '순서': detail_item.get('sequence_order', 0)
+            }
+            records_for_backup.append(combined_record)
+        return records_for_backup
+
+    def _is_auto_backup_active(self) -> bool:
+        """저장 시 자동 백업이 켜져 있는지 여부."""
+        return (self.google_sheets_config.is_backup_enabled() and
+                self.google_sheets_config.is_auto_backup_on_save())
+
     def _backup_to_google_sheets(self, record_data: Dict, details: List[Dict]) -> None:
         """Auto-backup mixing records to Google Sheets."""
-        if not (self.google_sheets_config.is_backup_enabled() and
-                self.google_sheets_config.is_auto_backup_on_save()):
+        if not self._is_auto_backup_active():
             return
 
         try:
-            records_for_backup = []
-            for detail_item in details:
-                combined_record = {
-                    '제품LOT': record_data.get('product_lot', ''),
-                    '레시피명': record_data.get('recipe_name', ''),
-                    '작업자': record_data.get('worker', ''),
-                    '작업일자': record_data.get('work_date', ''),
-                    '작업시간': record_data.get('work_time', ''),
-                    '총배합량': record_data.get('total_amount', 0.0),
-                    '스케일': record_data.get('scale', ''),
-                    '품목코드': detail_item.get('material_code', ''),
-                    '품목명': detail_item.get('material_name', ''),
-                    '자재LOT': detail_item.get('material_lot', ''),
-                    '배합비율': detail_item.get('ratio', 0.0),
-                    '이론량': detail_item.get('theory_amount', 0.0),
-                    '실제량': detail_item.get('actual_amount', 0.0),
-                    '순서': detail_item.get('sequence_order', 0)
-                }
-                records_for_backup.append(combined_record)
-
+            records_for_backup = self._build_backup_records(record_data, details)
             success, msg = self.google_sheets_backup.backup_records(records_for_backup)
             if success:
                 logger.info(f"Google Sheets auto-backup success: {msg}")
@@ -146,6 +155,26 @@ class DataManager:
                 logger.warning(f"Google Sheets auto-backup failed: {msg}")
         except (OSError, ValueError, RuntimeError) as e:
             logger.error(f"Google Sheets auto-backup error: {e}")
+
+    def backup_lot_to_sheets(self, product_lot: str) -> Tuple[bool, str]:
+        """저장된 LOT을 DB에서 재조회해 Google Sheets로 백업한다 (PDCA #33).
+
+        UI가 워커 스레드에서 호출하는 동기 메서드 — DB가 진실의 원천이므로
+        저장된 내용 그대로 백업된다. SQLite 연결은 호출마다 새로 열려 스레드 안전.
+        """
+        if not self._is_auto_backup_active():
+            return False, "Google Sheets 백업이 비활성화되어 있습니다."
+        record = self.db_manager.get_mixing_record_by_lot(product_lot)
+        if not record:
+            return False, f"백업할 기록을 찾을 수 없습니다: LOT {product_lot}"
+        details = [dict(d) for d in self.db_manager.get_mixing_details(record['id'])]
+        records_for_backup = self._build_backup_records(dict(record), details)
+        success, msg = self.google_sheets_backup.backup_records(records_for_backup)
+        if success:
+            logger.info(f"Google Sheets auto-backup success: {msg}")
+        else:
+            logger.warning(f"Google Sheets auto-backup failed: {msg}")
+        return success, msg
     def validate_record_inputs(self, worker_name: str, recipe_name: str,
                                mixing_amount: float, materials_data: Dict) -> Tuple[bool, str]:
         """Validate required inputs before saving a record."""
@@ -170,8 +199,12 @@ class DataManager:
                 return False, "실제 배합량을 입력해주세요."
         return True, ""
 
-    def save_record(self, worker_name: str, recipe_name: str, mixing_amount: float, materials_data: Dict, work_date: str, work_time: str, signature_options: Optional[Dict] = None, effects_params: Optional[Dict] = None, include_work_time: bool = True) -> str:
-        """Save mixing record to DB and trigger backup."""
+    def save_record(self, worker_name: str, recipe_name: str, mixing_amount: float, materials_data: Dict, work_date: str, work_time: str, signature_options: Optional[Dict] = None, effects_params: Optional[Dict] = None, include_work_time: bool = True, auto_backup: bool = True) -> str:
+        """Save mixing record to DB and trigger backup.
+
+        auto_backup=False면 동기 백업을 생략한다 — 호출자(UI)가
+        backup_lot_to_sheets를 워커 스레드에서 별도로 실행하는 경우 (PDCA #33).
+        """
         try:
             product_lot = self.generate_product_lot(recipe_name, work_date)
 
@@ -190,7 +223,8 @@ class DataManager:
             # 2. Persist (DB가 동일 트랜잭션에서 product_lot 유일성을 최종 보장)
             self.db_manager.save_mixing_record(record_data, details_data)
             product_lot = record_data['product_lot']
-            self._backup_to_google_sheets(record_data, details_data)
+            if auto_backup:
+                self._backup_to_google_sheets(record_data, details_data)
             self._deduct_inventory(details_data)
             logger.info(f"배합 저장: LOT {product_lot}")
 

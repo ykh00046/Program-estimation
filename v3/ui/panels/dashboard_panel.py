@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme
 from models.dashboard_exporter import DashboardExporter
+from ui.workers import start_worker
 
 try:
     from PySide6.QtCharts import (
@@ -255,11 +256,26 @@ class DashboardPanel(QWidget):
 
     def _export_excel(self) -> None:
         start, end = self._current_date_range()
-        self._notify_export(self._exporter.export_excel(start, end))
+        self._start_export_worker(self._exporter.export_excel, (start, end),
+                                  use_com=False)
 
     def _export_pdf(self) -> None:
         start, end = self._current_date_range()
-        self._notify_export(self._exporter.export_pdf(start, end))
+        self._start_export_worker(self._exporter.export_pdf, (start, end),
+                                  use_com=True)
+
+    def _start_export_worker(self, fn, args: tuple, use_com: bool) -> None:
+        """내보내기를 백그라운드 워커로 실행 (UI 비차단, PDCA #33)."""
+        start_worker(
+            self, fn, args=args, use_com=use_com,
+            busy_widgets=(self.export_excel_btn, self.export_pdf_btn),
+            on_result=self._notify_export,
+            on_failed=self._notify_export_error,
+        )
+
+    def _notify_export_error(self, message: str) -> None:
+        QMessageBox.warning(self, "내보내기 실패",
+                            f"파일 생성 중 오류가 발생했습니다.\n{message}")
 
     def _notify_export(self, path: Optional[str]) -> None:
         if path:

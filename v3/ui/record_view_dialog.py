@@ -24,6 +24,7 @@ from utils.logger import logger
 from ui.styles import UIStyles, UITheme
 from ui.components import StyledButton
 from ui.record_ops_controller import RecordOpsController
+from ui.workers import start_worker, wait_for_workers
 
 
 
@@ -119,9 +120,9 @@ class RecordDetailDialog(QDialog):
 
         button_layout.addSpacing(20)
 
-        export_btn = StyledButton("실적서 출력", "secondary")
-        export_btn.clicked.connect(self.export_report)
-        button_layout.addWidget(export_btn)
+        self.export_btn = StyledButton("실적서 출력", "secondary")
+        self.export_btn.clicked.connect(self.export_report)
+        button_layout.addWidget(self.export_btn)
 
         close_btn = StyledButton("닫기", "secondary")
         close_btn.clicked.connect(self.close)
@@ -261,29 +262,41 @@ class RecordDetailDialog(QDialog):
         self.lot_data = self.lot_data[self.lot_data['product_lot'] == product_lot]
 
     def export_report(self):
-        """실적서 출력"""
-        try:
-            product_lot = self.lot_data.iloc[0]['product_lot']
-            logger.info(f"실적서 출력 기능 실행: LOT {product_lot}")
+        """실적서 출력 (백그라운드 워커, PDCA #33)"""
+        product_lot = self.lot_data.iloc[0]['product_lot']
+        logger.info(f"실적서 출력 기능 실행: LOT {product_lot}")
+        self._exporting_lot = product_lot
+        start_worker(
+            self, self.data_manager.export_existing_record,
+            args=(product_lot, self.effects_params),
+            use_com=True,
+            busy_widgets=(self.export_btn,),
+            on_result=self._on_export_done,
+            on_failed=self._on_export_failed,
+        )
 
-            # 데이터 매니저를 통해 재출력 (효과 파라미터 전달)
-            pdf_file = self.data_manager.export_existing_record(product_lot, self.effects_params)
+    def _on_export_done(self, pdf_file) -> None:
+        if pdf_file:
+            logger.info(f"실적서 출력 완료: {pdf_file}")
+            reply = QMessageBox.question(
+                self, "출력 완료",
+                f"엑셀/PDF 파일이 생성되었습니다.\n\nLOT: {self._exporting_lot}\n\n결과 폴더를 확인하시겠습니까?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                if hasattr(self.parent_dialog, '_open_output_folder'):
+                    self.parent_dialog._open_output_folder()
+        else:
+            QMessageBox.warning(self, "출력 실패", "엑셀/PDF 파일 생성에 실패했습니다.")
 
-            if pdf_file:
-                logger.info(f"실적서 출력 완료: {pdf_file}")
-                reply = QMessageBox.question(
-                    self, "출력 완료", 
-                    f"엑셀/PDF 파일이 생성되었습니다.\n\nLOT: {product_lot}\n\n결과 폴더를 확인하시겠습니까?",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
-                )
-                if reply == QMessageBox.Yes:
-                    if hasattr(self.parent_dialog, '_open_output_folder'):
-                        self.parent_dialog._open_output_folder()
-            else:
-                QMessageBox.warning(self, "출력 실패", "엑셀/PDF 파일 생성에 실패했습니다.")
-        except Exception as e:
-            logger.error(f"실적서 출력 오류: {e}")
-            QMessageBox.critical(self, "오류", f"실적서 출력 중 오류가 발생했습니다.\n{str(e)}")
+    def _on_export_failed(self, message: str) -> None:
+        logger.error(f"실적서 출력 오류: {message}")
+        QMessageBox.critical(self, "오류", f"실적서 출력 중 오류가 발생했습니다.\n{message}")
+
+    def closeEvent(self, event):
+        """닫기 시 잔여 출력 워커 대기 — COM 워커 조기 파괴 방지 (PDCA #33)."""
+        wait_for_workers(self)
+        super().closeEvent(event)
 
 
 class RecordViewDialog(QDialog):
@@ -379,17 +392,17 @@ class RecordViewDialog(QDialog):
         self.chk_include_time_export.setChecked(True)
         button_layout.addWidget(self.chk_include_time_export)
 
-        export_btn = StyledButton("엑셀/PDF 출력", "success")
-        export_btn.clicked.connect(self.export_selected_record)
-        button_layout.addWidget(export_btn)
+        self.export_btn = StyledButton("엑셀/PDF 출력", "success")
+        self.export_btn.clicked.connect(self.export_selected_record)
+        button_layout.addWidget(self.export_btn)
 
         open_folder_btn = StyledButton("폴더 열기", "secondary")
         open_folder_btn.clicked.connect(self._open_output_folder)
         button_layout.addWidget(open_folder_btn)
 
-        delete_btn = StyledButton("삭제", "danger")
-        delete_btn.clicked.connect(self.delete_selected_record)
-        button_layout.addWidget(delete_btn)
+        self.delete_btn = StyledButton("삭제", "danger")
+        self.delete_btn.clicked.connect(self.delete_selected_record)
+        button_layout.addWidget(self.delete_btn)
 
         button_layout.addStretch()
 
@@ -509,17 +522,25 @@ class RecordViewDialog(QDialog):
         ]
 
     def export_selected_record(self):
-        """선택된 기록의 엑셀/PDF 재출력"""
+        """선택된 기록의 엑셀/PDF 재출력 (백그라운드 워커, PDCA #33)"""
         checked_items = self._get_checked_lots()
         if not checked_items:
             QMessageBox.warning(self, "경고", "출력할 기록을 선택하세요.")
             return
 
         include_time = self.chk_include_time_export.isChecked()
-        result = self._ops.export_records(
-            checked_items, self.effects_params, include_work_time=include_time
+        start_worker(
+            self, self._ops.export_records,
+            args=(checked_items, self.effects_params),
+            kwargs={"include_work_time": include_time},
+            use_com=True,
+            busy_widgets=(self.export_btn, self.delete_btn),
+            on_result=self._show_export_result,
+            on_failed=self._show_export_error,
         )
 
+    def _show_export_result(self, result) -> None:
+        """일괄 출력 집계 결과 알림 (워커 완료 슬롯)."""
         summary_message = f"총 {result.total}건 중 {result.success_count}건 성공, {result.fail_count}건 실패."
         if result.failed_lots:
             summary_message += f"\n실패 LOT: {', '.join(result.failed_lots)}"
@@ -534,6 +555,10 @@ class RecordViewDialog(QDialog):
                 self._open_output_folder()
         else:
             QMessageBox.warning(self, "출력 실패", summary_message)
+
+    def _show_export_error(self, message: str) -> None:
+        logger.error(f"일괄 출력 오류: {message}")
+        QMessageBox.critical(self, "오류", f"출력 중 오류가 발생했습니다.\n{message}")
 
     def delete_selected_record(self):
         """선택된 기록 삭제"""
@@ -554,4 +579,9 @@ class RecordViewDialog(QDialog):
 
         QMessageBox.information(self, "삭제 완료", summary_message)
         self.load_records()
+
+    def closeEvent(self, event):
+        """닫기 시 잔여 출력 워커 대기 — COM 워커 조기 파괴 방지 (PDCA #33)."""
+        wait_for_workers(self)
+        super().closeEvent(event)
 
