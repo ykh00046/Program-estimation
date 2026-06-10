@@ -201,6 +201,7 @@ class MainWindow(FluentWindow):
 
     def _connect_panel_signals(self):
         """패널 간 시그널 연결"""
+        self.recipe_panel.edit_recipes_btn.clicked.connect(self._open_recipe_editor)
         binder = PanelSignalBinder(self.recipe_panel, self.work_info_panel, self.material_panel)
         binder.bind({
             "on_recipe_changed": self.recipe_controller.on_recipe_changed,
@@ -295,6 +296,12 @@ class MainWindow(FluentWindow):
             dlg.exec()
         except Exception as e:
             logger.log_error_with_context(e, {"context": "open_records"})
+
+    def _open_recipe_editor(self):
+        """배합 레시피 편집 다이얼로그 (PDCA #37). 닫힌 후 콤보 갱신."""
+        from ui.dialogs.recipe_edit_dialog import RecipeEditDialog
+        RecipeEditDialog(self.data_manager, self).exec()
+        self.recipe_controller.load_recipes()
 
     def _after_recipe_loaded(self) -> None:
         self._recalc_theory()

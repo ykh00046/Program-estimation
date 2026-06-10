@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
-    QComboBox, QDoubleSpinBox
+    QComboBox, QDoubleSpinBox, QPushButton
 )
 from PySide6.QtCore import Signal, Qt, QEvent
-from ui.styles import UITheme
+from ui.styles import UIStyles, UITheme
 
 # 빨간 테두리 스타일
 HIGHLIGHT_STYLE = f"border: 1px solid {UITheme.MINT_ACCENT}; border-radius: 6px;"
@@ -33,7 +33,12 @@ class RecipePanel(QWidget):
         self.recipe_combo.setMinimumWidth(200)
         self.recipe_combo.currentTextChanged.connect(self._on_recipe_changed)
         layout.addWidget(self.recipe_combo)
-        
+
+        # 배합 레시피 편집 진입점 (PDCA #37) — 클릭 처리는 MainWindow가 배선
+        self.edit_recipes_btn = QPushButton("레시피 편집")
+        self.edit_recipes_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        layout.addWidget(self.edit_recipes_btn)
+
         layout.addSpacing(20)
         
         # 배합량 (화살표 버튼 제거)

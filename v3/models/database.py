@@ -260,6 +260,9 @@ class MixingDatabaseManager(SqliteManagerBase):
     def get_recipes(self) -> Dict[str, List[Dict]]:
         return self._recipes.get_recipes()
 
+    def deactivate_recipe(self, recipe_name: str) -> bool:
+        return self._recipes.deactivate_recipe(recipe_name)
+
     # ── 통계 집계 (StatisticsRepository) ──
     def get_statistics(self) -> Dict:
         return self._stats.get_statistics()

@@ -60,11 +60,30 @@ class RecipeRepository(SqliteManagerBase):
                 recipes[recipe_name].append({
                     '품목코드': row['material_code'],
                     '품목명': row['material_name'],
-                    '배합비율': row['ratio']
+                    '배합비율': row['ratio'],
+                    '순서': row['sequence_order'],  # UI 정렬 호환 (PDCA #37, additive)
                 })
 
             logger.debug(f"레시피 조회: {len(recipes)}개 레시피")
             return recipes
+
+    @handle_exceptions(user_message="레시피 삭제 중 오류가 발생했습니다.", default_return=False)
+    def deactivate_recipe(self, recipe_name: str) -> bool:
+        """레시피를 비활성화한다 (PDCA #37).
+
+        물리 삭제 금지 — 기존 배합 기록의 recipe_name 참조를 보존한다.
+        get_recipes(is_active=1 필터)에서 자연 제외되어 콤보에서 사라진다.
+        Returns: 활성 행이 비활성화되면 True, 대상 없으면 False.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE recipes SET is_active = 0, updated_at = CURRENT_TIMESTAMP "
+                "WHERE recipe_name = ? AND is_active = 1", (recipe_name,))
+            conn.commit()
+            deactivated = cursor.rowcount > 0
+        if deactivated:
+            logger.info(f"레시피 비활성화: {recipe_name}")
+        return deactivated
 
 
 __all__ = ["RecipeRepository"]

@@ -33,15 +33,18 @@ class TestDataManager(unittest.TestCase):
         self.mock_exists = self.patcher_exists.start()
         self.mock_exists.return_value = True
 
+        # PDCA #37: 레시피 SSOT = DB. 기본은 빈 DB(시드 경로, Excel mock은 빈 df)
+        self.db_manager_mock.get_recipes.return_value = {}
+
     def tearDown(self):
         self.patcher_db.stop()
         self.patcher_lot.stop()
         self.patcher_pd.stop()
         self.patcher_exists.stop()
 
-    def test_load_recipes_success(self):
-        """Test successful loading of recipes from Excel"""
-        # Setup mock dataframe
+    def test_load_recipes_seeds_db_from_excel_when_empty(self):
+        """빈 DB → Excel 시드 → DB 재조회가 SSOT (PDCA #37 마이그레이션 경로)."""
+        # Setup mock dataframe (Excel 시드 소스)
         mock_df = MagicMock()
         mock_df.iterrows.return_value = [
             (0, {'레시피': 'RecipeA', '품목코드': 'M001', '품목명': 'Material1', '배합비율': 50.0}),
@@ -50,15 +53,33 @@ class TestDataManager(unittest.TestCase):
         ]
         self.mock_read_excel.return_value = mock_df
 
-        # Initialize DataManager (calls _load_recipes_from_excel internally)
+        seeded_db = {
+            'RecipeA': [{'품목코드': 'M001', '품목명': 'Material1', '배합비율': 50.0, '순서': 1},
+                        {'품목코드': 'M002', '품목명': 'Material2', '배합비율': 50.0, '순서': 2}],
+            'RecipeB': [{'품목코드': 'M003', '품목명': 'Material3', '배합비율': 100.0, '순서': 1}],
+        }
+        # 1차 조회 = 빈 DB(시드 트리거), 2차 조회 = 시드 결과
+        self.db_manager_mock.get_recipes.side_effect = [{}, seeded_db]
+
         dm = DataManager()
-        
-        # Verify recipes structure
+
+        # Excel 레시피가 DB로 시드됨
+        self.assertEqual(self.db_manager_mock.save_recipe.call_count, 2)
+        seeded_names = [c[0][0] for c in self.db_manager_mock.save_recipe.call_args_list]
+        self.assertEqual(sorted(seeded_names), ['RecipeA', 'RecipeB'])
+        # 런타임 진실은 DB 재조회 결과
         self.assertIn('RecipeA', dm.recipes)
-        self.assertIn('RecipeB', dm.recipes)
         self.assertEqual(len(dm.recipes['RecipeA']), 2)
-        self.assertEqual(len(dm.recipes['RecipeB']), 1)
         self.assertEqual(dm.recipes['RecipeA'][0]['품목코드'], 'M001')
+
+    def test_load_recipes_uses_db_without_excel_when_populated(self):
+        """DB에 레시피가 있으면 Excel을 읽지 않는다 (DB = SSOT)."""
+        self.db_manager_mock.get_recipes.return_value = {
+            'FromDB': [{'품목코드': 'M9', '품목명': 'X', '배합비율': 100.0, '순서': 1}],
+        }
+        dm = DataManager()
+        self.db_manager_mock.save_recipe.assert_not_called()
+        self.assertEqual(dm.get_recipe_names(), ['FromDB'])
 
     def test_generate_product_lot_first_of_day(self):
         """Test LOT generation for the first record of the day"""

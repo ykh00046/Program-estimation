@@ -28,12 +28,14 @@ class DataManager:
         self.lot_manager = LotManager(LOT_FILE)
         self.google_sheets_config = GoogleSheetsConfig()
         self.google_sheets_backup = GoogleSheetsBackup(self.google_sheets_config)
-        self.recipes = self._load_recipes_from_excel()
+        self.recipes: Dict = {}
+        self.load_recipes()
 
     def _load_recipes_from_excel(self) -> Dict:
-        """
-        초기 레시피를 Excel 파일로부터 메모리로 로드합니다.
-        UI의 레시피 선택 콤보박스를 채우기 위해 사용됩니다.
+        """레시피.xlsx에서 레시피를 읽는다 — **시드(마이그레이션) 소스 전용** (PDCA #37).
+
+        런타임 SSOT는 DB(recipes 테이블)이며, 이 메서드는 빈 테이블 자동 시드와
+        편집 다이얼로그의 명시적 "Excel에서 가져오기"에서만 사용된다.
         """
         recipes = {}
         try:
@@ -584,8 +586,38 @@ class DataManager:
         return self.recipes.get(recipe_name, [])
 
     def load_recipes(self) -> None:
-        """Reload recipes from Excel."""
-        self.recipes = self._load_recipes_from_excel()
+        """레시피를 DB(SSOT)에서 로드한다 (PDCA #37).
+
+        recipes 테이블이 비어 있으면 Excel에서 1회 자동 시드(무손실 마이그레이션)
+        후 재조회한다. 이후 실행에서는 DB만 읽는다.
+        """
+        recipes = self.db_manager.get_recipes()
+        if not recipes:
+            seeded = self.seed_recipes_from_excel()
+            if seeded:
+                recipes = self.db_manager.get_recipes()
+        self.recipes = recipes or {}
+
+    def seed_recipes_from_excel(self) -> int:
+        """레시피.xlsx의 레시피를 DB로 임포트한다 (이름 기준 덮어쓰기).
+
+        '비어 있을 때만' 조건은 load_recipes 책임 — 이 메서드 자체는 무조건 임포트
+        (편집 다이얼로그의 명시적 'Excel에서 가져오기'가 직접 호출). 반환: 임포트 종수.
+        """
+        excel_recipes = self._load_recipes_from_excel()
+        for name, materials in excel_recipes.items():
+            self.db_manager.save_recipe(name, materials)
+        if excel_recipes:
+            logger.info(f"레시피 Excel 시드: {len(excel_recipes)}종 → DB")
+        return len(excel_recipes)
+
+    def save_recipe(self, recipe_name: str, materials: List[Dict]) -> None:
+        """배합 레시피 저장 (신규/수정 — recipes 테이블 SSOT, PDCA #37)."""
+        return self.db_manager.save_recipe(recipe_name, materials)
+
+    def deactivate_recipe(self, recipe_name: str) -> bool:
+        """배합 레시피 비활성화 (물리 삭제 아님 — 기록 참조 보존)."""
+        return self.db_manager.deactivate_recipe(recipe_name)
 
     # ------------------------------------------------------------------
     # Dashboard 집계 위임 (PDCA #17)
