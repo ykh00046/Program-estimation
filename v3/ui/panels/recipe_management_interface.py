@@ -35,8 +35,8 @@ class RecipeManagementInterface(QWidget):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 20, 24, 24)
-        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 16, 24, 12)
+        main_layout.setSpacing(14)
 
         title_label = QLabel("DHR 관리 (레시피)")
         title_label.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {UITheme.TEXT_PRIMARY};")
@@ -64,13 +64,20 @@ class RecipeManagementInterface(QWidget):
         splitter.addWidget(right_widget)
 
         splitter.setSizes([400, 800])
+        # stretch=1 명시 — 여유 공간이 타이틀 위/아래로 분산되어 상단에
+        # 거대한 빈 영역이 생기던 문제 해소 (PDCA #39 시각 QA, 단독 렌더로 격리 확인)
         content_layout.addWidget(splitter)
-        main_layout.addLayout(content_layout)
+        main_layout.addLayout(content_layout, 1)
 
     def _make_category_btn(self, text, callback) -> StyledButton:
-        """분류 +/- 버튼 팩토리 (28x28 secondary)."""
+        """분류 +/- 버튼 팩토리 (28x28 secondary).
+
+        secondary 스타일의 기본 패딩이 28px 정사각에서 텍스트를 밀어내
+        빈 네모로 보이던 문제 — 패딩 제거로 +/- 노출 (PDCA #39 시각 QA).
+        """
         btn = StyledButton(text, "secondary")
         btn.setFixedSize(28, 28)
+        btn.setStyleSheet(btn.styleSheet() + " QPushButton { padding: 0px; font-weight: 700; }")
         btn.clicked.connect(callback)
         return btn
 
@@ -94,6 +101,7 @@ class RecipeManagementInterface(QWidget):
         self.recipe_table.setStyleSheet(UIStyles.get_table_style())
         self.recipe_table.setAlternatingRowColors(True)
         self.recipe_table.verticalHeader().setVisible(False)
+        self.recipe_table.setMinimumHeight(180)  # 작은 창에서 하단 버튼 우선 보존 (PDCA #39)
         left_layout.addWidget(self.recipe_table)
 
         list_btn_layout = QHBoxLayout()

@@ -312,6 +312,11 @@ class RecordViewDialog(QDialog):
         self.setWindowTitle("배합 기록 조회")
         if not self._embedded:
             self.setGeometry(200, 200, 1200, 800)
+        # 테마 미적용 상태(시스템 위젯 룩)였음 — 시각 QA 발견 (PDCA #39)
+        try:
+            self.setStyleSheet(UIStyles.get_dialog_style())
+        except Exception:  # noqa: BLE001 — 스타일 누락 시 기본 스타일로 표시
+            pass
         self.init_ui()
         self.load_records()
         self._populate_items_combo()
@@ -325,8 +330,10 @@ class RecordViewDialog(QDialog):
     def init_ui(self):
         """UI 초기화."""
         layout = QVBoxLayout()
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.addWidget(self._build_filter_group())
-        layout.addWidget(self._build_records_table())
+        # 테이블만 신축 + 최소높이 제한 — 집계/버튼 바가 창 높이에 잘리지 않도록 (PDCA #39)
+        layout.addWidget(self._build_records_table(), 1)
         layout.addWidget(self._build_aggregation_group())
         layout.addLayout(self._build_button_bar())
         self.setLayout(layout)
@@ -342,6 +349,7 @@ class RecordViewDialog(QDialog):
         self.end_date = QDateEdit(calendarPopup=True, date=QDate.currentDate())
         filter_layout.addWidget(self.end_date)
         search_btn = QPushButton("조회")
+        search_btn.setStyleSheet(UIStyles.get_secondary_button_style())
         search_btn.clicked.connect(self.load_records)
         filter_layout.addWidget(search_btn)
         filter_layout.addStretch()
@@ -357,6 +365,16 @@ class RecordViewDialog(QDialog):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.doubleClicked.connect(self.show_detail)
+        # 테마 + 컬럼 폭 배분 — 좌측 뭉침 해소 (PDCA #39 시각 QA)
+        self.table.setStyleSheet(UIStyles.get_table_style())
+        self.table.verticalHeader().setVisible(False)
+        self.table.setMinimumHeight(180)  # 작은 창에서 버튼 바 우선 보존
+        header = self.table.horizontalHeader()
+        from PySide6.QtWidgets import QHeaderView
+        for col in (0, 2, 4, 5):  # 선택/작업자/배합량/작업일시
+            header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        for col in (1, 3):        # 제품LOT/레시피
+            header.setSectionResizeMode(col, QHeaderView.Stretch)
         return self.table
 
     def _build_aggregation_group(self):

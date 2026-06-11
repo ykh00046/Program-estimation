@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QSizePolicy
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QSizePolicy, QScrollArea,
+)
 from PySide6.QtCore import Qt
 from qfluentwidgets import (
     CardWidget,
@@ -18,21 +20,24 @@ from ui.controllers import StatusController
 from ui.styles import UITheme
 
 
-class RecordsHostPage(QWidget):
-    """기록 조회 임베드 페이지 (PDCA #38).
+class RecordsHostPage(QScrollArea):
+    """기록 조회 임베드 페이지 (PDCA #38/#39).
 
     별도 창 대신 사이드바 페이지에 RecordViewDialog를 직접 표시한다.
     탭 진입(showEvent)마다 lazy 생성 + 기록 새로고침 + 효과 파라미터 최신화 —
     배합 저장 후 탭을 전환해도 최신 기록이 보이도록 보장한다.
+
+    QScrollArea 호스트(수기/일괄 페이지와 동일 패턴) — 페이지가 콘텐츠
+    sizeHint대로 렌더되어 하단 버튼 바가 창 높이에 잘리던 문제를 원천 차단.
     """
 
     def __init__(self, window):
         super().__init__()
         self.setObjectName("RecordsPage")
+        self.setWidgetResizable(True)
+        self.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
         self._window = window
         self._view = None
-        self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(12, 12, 12, 12)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -52,7 +57,7 @@ class RecordsHostPage(QWidget):
             # 부모에 늦게 추가된 위젯은 자동 표시되지 않는다 — 둘 다 명시 처리
             # (시각 QA에서 빈 페이지로 발견된 버그, 2026-06-11)
             self._view.setWindowFlags(Qt.Widget)
-            self._layout.addWidget(self._view)
+            self.setWidget(self._view)
             self._view.show()
         else:
             self._view.effects_params = effects

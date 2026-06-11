@@ -37,6 +37,36 @@ _app = QApplication.instance() or QApplication(sys.argv)
 from ui.panels.dashboard_panel import DashboardPanel  # noqa: E402
 
 
+class PadMonthlyRowsTests(unittest.TestCase):
+    """`_pad_monthly_rows` 순수 함수 검증 (PDCA #39 — 단일 막대 과대폭 해소)."""
+
+    @staticmethod
+    def _current_key() -> str:
+        from datetime import date
+        today = date.today()
+        return f"{today.year:04d}-{today.month:02d}"
+
+    def test_pads_to_n_months_ending_current(self):
+        padded = DashboardPanel._pad_monthly_rows([], months=6)
+        self.assertEqual(len(padded), 6)
+        self.assertEqual(padded[-1]["year_month"], self._current_key())
+        self.assertTrue(all(float(r["total_amount"]) == 0.0 for r in padded))
+        self.assertEqual(len({r["year_month"] for r in padded}), 6)  # 중복 없음
+
+    def test_existing_month_data_preserved_in_place(self):
+        key = self._current_key()
+        padded = DashboardPanel._pad_monthly_rows(
+            [{"year_month": key, "total_amount": 50.0, "record_count": 1}], months=3)
+        self.assertEqual(len(padded), 3)
+        self.assertEqual(padded[-1]["total_amount"], 50.0)
+        self.assertEqual(padded[0]["total_amount"], 0.0)
+
+    def test_out_of_window_rows_dropped(self):
+        padded = DashboardPanel._pad_monthly_rows(
+            [{"year_month": "1999-01", "total_amount": 99.0}], months=3)
+        self.assertTrue(all(float(r["total_amount"]) == 0.0 for r in padded))
+
+
 class FormatAmountTests(unittest.TestCase):
     """`_format_amount` 순수 함수 검증."""
 

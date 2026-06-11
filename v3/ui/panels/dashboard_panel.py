@@ -480,11 +480,34 @@ class DashboardPanel(QWidget):
         self.chart_stack.setCurrentIndex(1)
         self._render_bar_chart(rows)
 
+    @staticmethod
+    def _pad_monthly_rows(rows: List[Dict], months: int = 6) -> List[Dict]:
+        """최근 N개월 전체를 카테고리로 채운다 (데이터 없는 달은 0).
+
+        데이터가 1~2개월뿐일 때 막대 하나가 차트 폭을 과점하던 문제 해소 —
+        축이 항상 N개 칸이라 막대폭이 일정해진다 (PDCA #39 시각 QA).
+        """
+        from datetime import date
+        today = date.today()
+        keys = []
+        year, month = today.year, today.month
+        for _ in range(months):
+            keys.append(f"{year:04d}-{month:02d}")
+            month -= 1
+            if month == 0:
+                year, month = year - 1, 12
+        keys.reverse()
+        by_month = {str(r.get("year_month") or ""): r for r in (rows or [])}
+        return [
+            by_month.get(k, {"year_month": k, "total_amount": 0.0, "record_count": 0})
+            for k in keys
+        ]
+
     def _render_bar_chart(self, rows: List[Dict]) -> None:
         bar_set = QBarSet("총 배합량 (g)")
         bar_set.setColor(QColor(UITheme.MINT_ACCENT))
         categories: List[str] = []
-        for row in rows:
+        for row in self._pad_monthly_rows(rows):
             bar_set.append(float(row.get("total_amount") or 0))
             categories.append(str(row.get("year_month") or ""))
 

@@ -52,7 +52,7 @@ def main() -> int:
     finally:
         WorkInfoPanel.request_worker_input = _orig
 
-    window.resize(1280, 860)
+    window.resize(1600, 1000)  # 실사용(FHD 모니터) 근사 — 작은 창 시나리오는 별도 점검
     window.move(-2600, -2600)  # 화면 밖 — grab()은 위젯 렌더 기반이라 캡처엔 무관
     window.show()
     app.processEvents()
@@ -66,9 +66,10 @@ def main() -> int:
             window.switchTo(widget)
         except Exception:
             stack.setCurrentWidget(widget)
-        # showEvent 기반 lazy 로드(기록 조회 등)와 차트 렌더를 위해 이벤트 소진
-        for _ in range(5):
-            app.processEvents()
+        # 페이지 전환 팝업 애니메이션(~250ms)이 끝나기 전에 grab하면
+        # 위젯이 아래로 밀린 중간 프레임이 찍힌다(하단 잘림처럼 보임) — 대기 필수
+        from PySide6.QtTest import QTest
+        QTest.qWait(400)
         path = os.path.join(out_dir, f"{i:02d}_{name}.png")
         if window.grab().save(path):
             saved.append(path)
