@@ -18,6 +18,42 @@ from ui.controllers import StatusController
 from ui.styles import UITheme
 
 
+class RecordsHostPage(QWidget):
+    """기록 조회 임베드 페이지 (PDCA #38).
+
+    별도 창 대신 사이드바 페이지에 RecordViewDialog를 직접 표시한다.
+    탭 진입(showEvent)마다 lazy 생성 + 기록 새로고침 + 효과 파라미터 최신화 —
+    배합 저장 후 탭을 전환해도 최신 기록이 보이도록 보장한다.
+    """
+
+    def __init__(self, window):
+        super().__init__()
+        self.setObjectName("RecordsPage")
+        self._window = window
+        self._view = None
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(12, 12, 12, 12)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        try:
+            self._ensure_view()
+        except Exception as e:  # noqa: BLE001 — 페이지 전환이 앱을 죽이지 않도록
+            from utils.logger import logger
+            logger.error(f"기록 조회 페이지 로드 실패: {e}", exc_info=True)
+
+    def _ensure_view(self):
+        from ui.record_view_dialog import RecordViewDialog
+        effects = self._window.scan_effects_panel.get_data()
+        if self._view is None:
+            self._view = RecordViewDialog(
+                self._window.data_manager, effects, parent=self, embedded=True)
+            self._layout.addWidget(self._view)
+        else:
+            self._view.effects_params = effects
+            self._view.load_records()
+
+
 @dataclass
 class MixingPageRefs:
     save_btn: StyledButton
@@ -238,14 +274,9 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
     # 4-2. 대시보드 (PDCA #17)
     window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")
 
-    # 5. 기록 조회
-    records_page = build_action_page(
-        "기록 조회",
-        "저장된 배합 기록을 검색하고 출력합니다.",
-        "기록 조회 열기",
-        window._open_records,
-        "RecordsPage",
-    )
+    # 5. 기록 조회 — 별도 창 대신 페이지에 직접 임베드 (PDCA #38)
+    records_page = RecordsHostPage(window)
+    window.records_host = records_page
     window.addSubInterface(records_page, FIF.HISTORY, "기록 조회")
 
     # 6. 설정 페이지

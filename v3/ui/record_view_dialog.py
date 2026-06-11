@@ -302,16 +302,25 @@ class RecordDetailDialog(QDialog):
 class RecordViewDialog(QDialog):
     """배합 기록 조회 다이얼로그"""
 
-    def __init__(self, data_manager, effects_params, parent=None):
+    def __init__(self, data_manager, effects_params, parent=None, embedded=False):
         super().__init__(parent)
         self.data_manager = data_manager
         self.effects_params = effects_params  # 스캔 효과 파라미터 저장
+        # 사이드바 페이지 임베드 모드 (PDCA #38) — 닫기 버튼 숨김 + ESC 무시
+        self._embedded = bool(embedded)
         self._ops = RecordOpsController(data_manager)
         self.setWindowTitle("배합 기록 조회")
-        self.setGeometry(200, 200, 1200, 800)
+        if not self._embedded:
+            self.setGeometry(200, 200, 1200, 800)
         self.init_ui()
         self.load_records()
         self._populate_items_combo()
+
+    def reject(self):
+        """임베드 모드에선 ESC가 페이지를 숨기지 않도록 무시한다 (PDCA #38)."""
+        if self._embedded:
+            return
+        super().reject()
 
     def init_ui(self):
         """UI 초기화."""
@@ -406,9 +415,10 @@ class RecordViewDialog(QDialog):
 
         button_layout.addStretch()
 
-        close_btn = StyledButton("닫기", "secondary")
-        close_btn.clicked.connect(self.close)
-        button_layout.addWidget(close_btn)
+        if not self._embedded:
+            close_btn = StyledButton("닫기", "secondary")
+            close_btn.clicked.connect(self.close)
+            button_layout.addWidget(close_btn)
         return button_layout
 
     def _open_output_folder(self):

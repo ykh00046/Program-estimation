@@ -149,7 +149,14 @@ class StatusController:
         self.google_sheets_config = google_sheets_config
 
     def set_message(self, message: str) -> None:
-        self.status_bar.showMessage(message)
+        # 커스텀 StatusBar(main_label "준비됨" 보유)에는 show_message로 라벨을 직접
+        # 갱신한다 — QStatusBar.showMessage의 임시 메시지는 위젯 위에 겹쳐 그려져
+        # "준비됨"과 텍스트가 포개지는 원인이었음 (PDCA #38 겹침 수정).
+        show = getattr(self.status_bar, "show_message", None)
+        if callable(show):
+            show(message, timeout=0)
+        else:
+            self.status_bar.showMessage(message)
 
     def update_backup_status(self) -> None:
         status_text = self.google_sheets_config.get_backup_status_text()

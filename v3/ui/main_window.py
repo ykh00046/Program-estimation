@@ -26,7 +26,6 @@ from models.data_manager import DataManager
 from models.dhr_database import DhrDatabaseManager
 from models.lot_manager import LotManager
 from config.settings import LOT_FILE
-from ui.record_view_dialog import RecordViewDialog
 from utils.logger import logger
 from config.config_manager import config
 from ui.panels.scan_effects_panel import ScanEffectsPanel
@@ -257,9 +256,11 @@ class MainWindow(FluentWindow):
         수기 입력/일괄 생성 인터페이스도 워커 owner이므로 함께 대기한다.
         (작업자 미선택 조기 종료 시 인터페이스 미생성 가능 — getattr 가드)
         """
+        records_view = getattr(getattr(self, "records_host", None), "_view", None)
         owners = (self,
                   getattr(self, "manual_interface", None),
-                  getattr(self, "bulk_interface", None))
+                  getattr(self, "bulk_interface", None),
+                  records_view)
         for owner in owners:
             if owner is not None:
                 wait_for_workers(owner)
@@ -269,7 +270,12 @@ class MainWindow(FluentWindow):
         if hasattr(self, "status_controller"):
             self.status_controller.set_message(message)
         elif hasattr(self, "mixing_status_bar"):
-            self.mixing_status_bar.showMessage(message)
+            # 컨트롤러 생성 전 폴백 — 동일하게 main_label 경로 사용 (겹침 방지, PDCA #38)
+            show = getattr(self.mixing_status_bar, "show_message", None)
+            if callable(show):
+                show(message, timeout=0)
+            else:
+                self.mixing_status_bar.showMessage(message)
 
     def _request_worker_and_refresh(self):
         self.work_info_panel.request_worker_input(initial=False)
@@ -288,14 +294,6 @@ class MainWindow(FluentWindow):
         logger.info(f"자동 LOT 배정 시작 (작업일자: {work_date})")
         self.material_panel.auto_assign_lots(work_date)
         self._set_status_message("자동 LOT 배정 완료")
-
-    def _open_records(self):
-        try:
-            effects_params = self.scan_effects_panel.get_data()
-            dlg = RecordViewDialog(self.data_manager, effects_params, self)
-            dlg.exec()
-        except Exception as e:
-            logger.log_error_with_context(e, {"context": "open_records"})
 
     def _open_recipe_editor(self):
         """배합 레시피 편집 다이얼로그 (PDCA #37). 닫힌 후 콤보 갱신."""
