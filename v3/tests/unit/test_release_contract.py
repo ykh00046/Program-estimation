@@ -43,6 +43,16 @@ class TestReleaseContract(unittest.TestCase):
         self.assertGreaterEqual(checker.MIN_EXE_SIZE_MB, 5)
         self.assertLessEqual(checker.MIN_EXE_SIZE_MB, 200)
 
+    def test_build_invokes_pyinstaller_via_sys_executable(self):
+        """빌드는 build.py를 실행한 인터프리터의 PyInstaller만 사용해야 한다.
+
+        bare "pyinstaller"는 PATH 1순위의 무관한 venv로 빌드되어 qfluentwidgets 등
+        미설치 모듈이 번들에서 누락된다 (2026-06-11 ModuleNotFoundError 사고 회귀 가드).
+        """
+        source = (V3_ROOT / "build.py").read_text(encoding="utf-8")
+        self.assertIn('sys.executable, "-m", "PyInstaller"', source)
+        self.assertNotRegex(source, r'\[\s*\n?\s*"pyinstaller"')
+
 
 if __name__ == "__main__":
     unittest.main()

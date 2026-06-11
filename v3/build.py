@@ -25,8 +25,11 @@ def build_exe():
     # 2. PyInstaller 명령어 구성
     print("\n[2/4] PyInstaller 명령어 구성 중...")
     
+    # build.py를 실행한 인터프리터(프로젝트 venv)의 PyInstaller를 강제한다.
+    # bare "pyinstaller"는 PATH 1순위의 무관한 환경(예: 타 도구 venv)으로 빌드되어
+    # qfluentwidgets 등 미설치 모듈이 번들에서 누락될 수 있음 (2026-06-11 사고).
     cmd = [
-        "pyinstaller",
+        sys.executable, "-m", "PyInstaller",
         "--onefile",                    # 단일 파일로 생성
         "--windowed",                   # 콘솔 창 숨김
         "--name=DHR_Generator",         # 실행 파일 이름
