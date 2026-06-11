@@ -48,7 +48,12 @@ class RecordsHostPage(QWidget):
         if self._view is None:
             self._view = RecordViewDialog(
                 self._window.data_manager, effects, parent=self, embedded=True)
+            # QDialog는 parent가 있어도 window 플래그를 유지하고, 이미 보이는
+            # 부모에 늦게 추가된 위젯은 자동 표시되지 않는다 — 둘 다 명시 처리
+            # (시각 QA에서 빈 페이지로 발견된 버그, 2026-06-11)
+            self._view.setWindowFlags(Qt.Widget)
             self._layout.addWidget(self._view)
+            self._view.show()
         else:
             self._view.effects_params = effects
             self._view.load_records()
