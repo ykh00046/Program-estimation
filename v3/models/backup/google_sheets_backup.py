@@ -5,7 +5,6 @@ BackupProvider 프로토콜을 구현합니다.
 
 import os
 from typing import Protocol, List, Dict, Any, Optional, Tuple
-from datetime import datetime
 
 # Google Sheets 백업은 선택 기능이다. 관련 의존성(gspread/google-auth)이 없거나
 # 손상된 환경에서도 앱 전체(데이터 계층) 임포트가 실패하지 않도록 지연/안전 임포트한다.

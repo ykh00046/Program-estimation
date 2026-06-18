@@ -80,7 +80,7 @@ class TestRecordViewDialogSmoke(unittest.TestCase):
 
     def test_export_empty_selection_warns_without_calling_dm(self):
         dm = _make_dm()
-        with patch("ui.record_view_dialog.QMessageBox") as MB:
+        with patch("ui.record_view_dialog.QMessageBox"):
             dlg = RecordViewDialog(dm, {"dpi": 250})
             dlg._get_checked_lots = lambda: []
             dlg.export_selected_record()

@@ -81,10 +81,10 @@ def create_deployment_package():
     print(f"\n패키지 이름: {package_name}")
     print(f"압축 파일: {zip_name}")
     print(f"압축 크기: {zip_size:.1f} MB")
-    print(f"\n배포 방법:")
+    print("\n배포 방법:")
     print(f"1. {zip_name} 파일을 대상 PC에 전달")
-    print(f"2. 압축 해제 후 DHR_Generator.exe와 resources/를 같은 폴더 구조로 유지")
-    print(f"3. DEPLOY_GUIDE.md의 사용자 실행 절차에 따라 DHR_Generator.exe 실행")
+    print("2. 압축 해제 후 DHR_Generator.exe와 resources/를 같은 폴더 구조로 유지")
+    print("3. DEPLOY_GUIDE.md의 사용자 실행 절차에 따라 DHR_Generator.exe 실행")
     
     return True
 

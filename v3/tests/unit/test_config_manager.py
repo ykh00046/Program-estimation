@@ -2,7 +2,7 @@
 ConfigManager 단위 테스트
 """
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, mock_open
 import json
 import os
 import sys

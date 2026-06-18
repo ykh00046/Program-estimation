@@ -2,7 +2,6 @@
 DHR 기록 조회 다이얼로그
 """
 import os
-import pandas as pd
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
@@ -15,8 +14,6 @@ from typing import Dict, Optional
 
 from models.dhr_database import DhrDatabaseManager
 from models.excel_exporter import ExcelExporter
-from ui.panels.scan_effects_panel import ScanEffectsPanel
-from ui.panels.signature_panel import SignaturePanel
 from ui.workers import start_worker, wait_for_workers
 from utils.logger import logger
 

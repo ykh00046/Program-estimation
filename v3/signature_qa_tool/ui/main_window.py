@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPixmap, QImage
-from PIL import Image
 import io
 
 
@@ -367,7 +366,6 @@ class MainWindow(QMainWindow):
         self.save_btn.setEnabled(True)
 
         # Update visual feedback
-        cols = self.qa_config.grid_columns
         for i in range(self.image_grid.count()):
             item = self.image_grid.itemAt(i)
             if item and item.widget():
@@ -389,7 +387,7 @@ class MainWindow(QMainWindow):
             output_path = self.generator.save_composite(image, worker_name, params_summary)
 
             QMessageBox.information(self, "Success", f"Image saved to:\n{output_path}")
-            self.status_label.setText(f"Image saved successfully!")
+            self.status_label.setText("Image saved successfully!")
 
     def save_all(self):
         """Save all generated images."""

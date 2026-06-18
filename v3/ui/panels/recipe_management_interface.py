@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
     QInputDialog
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
 
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme
@@ -244,7 +243,8 @@ class RecipeManagementInterface(QWidget):
             self.db.add_category(cat_type, text.strip())
             self._load_categories()
             idx = combo.findText(text.strip())
-            if idx >= 0: combo.setCurrentIndex(idx)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
             logger.info(f"분류 추가: {cat_type} = {text.strip()}")
     
     def _delete_category(self, cat_type: str, combo: QComboBox):
@@ -278,7 +278,8 @@ class RecipeManagementInterface(QWidget):
     
     def _on_recipe_selected(self):
         row = self.recipe_table.currentRow()
-        if row < 0: return
+        if row < 0:
+            return
         
         try:
             recipe_id = int(self.recipe_table.item(row, 0).text())

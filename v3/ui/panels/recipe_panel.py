@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
+    QWidget, QHBoxLayout, QLabel,
     QComboBox, QDoubleSpinBox, QPushButton
 )
 from PySide6.QtCore import Signal, Qt, QEvent

@@ -1,0 +1,12 @@
+# Ruff 설정 — 배합 프로그램 v3 린트 정책 SSOT
+# Python 3.9 호환 유지(프로젝트 규칙). 기본 규칙(E4/E7/E9/F) 사용.
+target-version = "py39"
+line-length = 120
+
+[lint.per-file-ignores]
+# 테스트/엔트리포인트는 import 전 sys.path·os.chdir·env 설정이 필수 → E402 의도적
+"tests/**" = ["E402"]
+"release.py" = ["E402"]
+"signature_qa_tool/main.py" = ["E402"]
+# excel_writer._fill_excel_data: 셀-매핑 테이블을 한 줄 가드로 정렬한 의도적 컴팩트 스타일
+"models/excel_writer.py" = ["E701"]

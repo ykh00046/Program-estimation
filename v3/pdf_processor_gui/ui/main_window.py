@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QFileDialog, QDoubleSpinBox,
     QSpinBox, QProgressBar, QTextEdit, QMessageBox
 )
-from PySide6.QtCore import Qt
 import sys
 # 상위 디렉토리 경로 추가
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

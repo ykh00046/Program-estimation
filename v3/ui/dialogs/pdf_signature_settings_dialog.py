@@ -2,7 +2,7 @@
 PDF/서명 설정 다이얼로그
 """
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QDialogButtonBox, QGroupBox
+    QDialog, QVBoxLayout, QDialogButtonBox
 )
 from PySide6.QtCore import Qt
 from ui.panels.scan_effects_panel import ScanEffectsPanel

@@ -3,16 +3,12 @@
 공통으로 사용되는 UI 요소들을 모듈화합니다.
 """
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QDoubleSpinBox, QGraphicsDropShadowEffect,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QProgressBar, QPushButton,
-    QSpinBox, QStatusBar, QStyledItemDelegate, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QApplication, QDialog, QGraphicsDropShadowEffect,
+    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QProgressBar, QStatusBar, QStyledItemDelegate, QTableWidget, QVBoxLayout, QWidget,
 )
 from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QValidator
-from qfluentwidgets import PushButton, PrimaryPushButton, CardWidget, CaptionLabel, SubtitleLabel, ProgressBar
-from config.config_manager import config
-from utils.logger import logger
+from qfluentwidgets import PushButton, CardWidget, CaptionLabel, SubtitleLabel, ProgressBar
 from ui.styles import UIStyles, UITheme  # 테마/스타일 임포트
 
 

@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-from typing import Optional
 
 from models.data_manager import DataManager
 from config.config_manager import config

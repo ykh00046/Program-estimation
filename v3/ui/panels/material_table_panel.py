@@ -1,10 +1,8 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget, 
-    QTableWidgetItem, QHeaderView, QMessageBox, QMenu,
-    QStyledItemDelegate, QLineEdit, QGroupBox
+    QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QHeaderView, QMessageBox
 )
-from PySide6.QtCore import Signal, Qt, QItemSelectionModel, QEvent
-from PySide6.QtGui import QAction, QColor, QKeySequence
+from PySide6.QtCore import Signal, Qt
+from PySide6.QtGui import QColor
 from datetime import datetime
 from qfluentwidgets import SearchLineEdit
 from utils.logger import logger

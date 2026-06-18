@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QCheckBox
-from PySide6.QtCore import Qt
 
 class SignaturePanel(QWidget):
     """서명 옵션을 관리하는 패널"""

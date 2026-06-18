@@ -17,7 +17,7 @@ from winerror import ERROR_ALREADY_EXISTS
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QFont
-from qfluentwidgets import setTheme, Theme, setThemeColor, setFont, setFontFamilies
+from qfluentwidgets import setTheme, Theme, setThemeColor, setFontFamilies
 from ui.main_window import MainWindow
 from utils.logger import logger
 from utils.error_handler import show_error_message

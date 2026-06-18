@@ -14,7 +14,7 @@ from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QFrame,
-    QStackedWidget, QGridLayout, QGroupBox, QMessageBox,
+    QStackedWidget, QMessageBox,
 )
 
 from utils.logger import logger

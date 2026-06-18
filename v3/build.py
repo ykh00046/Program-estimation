@@ -51,7 +51,7 @@ def build_exe():
     print("-" * 60)
     
     try:
-        result = subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True)
         print("-" * 60)
         print("[OK] 빌드 성공!")
     except subprocess.CalledProcessError as e:

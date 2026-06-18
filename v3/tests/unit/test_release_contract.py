@@ -6,7 +6,6 @@ APP_NAME / RELEASE_VERSION / ZIP_PATTERN / MIN_EXE_SIZE_MB 등 배포 계약
 """
 from __future__ import annotations
 
-import re
 import sys
 import unittest
 from pathlib import Path

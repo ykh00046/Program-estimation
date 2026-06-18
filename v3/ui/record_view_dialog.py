@@ -8,7 +8,6 @@
 
 import os
 
-import pandas as pd
 from typing import List
 
 from PySide6.QtWidgets import (
@@ -18,7 +17,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate, Qt
 
-from models.excel_exporter import ExcelExporter
 
 from utils.logger import logger
 from ui.styles import UIStyles, UITheme

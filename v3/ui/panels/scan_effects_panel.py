@@ -1,10 +1,9 @@
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QGroupBox, QLabel, QSpinBox, 
+    QWidget, QGridLayout, QLabel, QSpinBox, 
     QDoubleSpinBox, QPushButton, QHBoxLayout, QMessageBox
 )
 from config.config_manager import config
 from utils.logger import logger
-from ui.styles import UIStyles
 
 class ScanEffectsPanel(QWidget):
     """PDF 스캔 효과 설정을 담당하는 패널"""

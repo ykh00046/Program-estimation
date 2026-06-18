@@ -118,7 +118,7 @@ def main():
     excel_to_pdf(INPUT_EXCEL_PATH, TEMP_PDF_PATH)
 
     if not os.path.exists(TEMP_PDF_PATH):
-        print(f"오류: 엑셀을 PDF로 변환하는 데 실패했습니다.")
+        print("오류: 엑셀을 PDF로 변환하는 데 실패했습니다.")
         return
 
     # 2. 임시 PDF -> 이미지 목록 (원본 이미지)
@@ -142,7 +142,7 @@ def main():
     # 5. 임시 파일 정리
     cleanup([TEMP_PDF_PATH])
 
-    print(f"\n모든 작업 완료! 결과물 PDF: 'test_scan_v1_high_noise_low_brightness.pdf', 'test_scan_v2_high_noise_medium_brightness.pdf', 'test_scan_v3_high_noise_high_brightness.pdf'")
+    print("\n모든 작업 완료! 결과물 PDF: 'test_scan_v1_high_noise_low_brightness.pdf', 'test_scan_v2_high_noise_medium_brightness.pdf', 'test_scan_v3_high_noise_high_brightness.pdf'")
 
 if __name__ == "__main__":
     main()

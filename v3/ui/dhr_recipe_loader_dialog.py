@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QComboBox, QTableWidget, QTableWidgetItem, QPushButton,
     QMessageBox, QAbstractItemView
 )
-from PySide6.QtCore import Qt
 
 from models.dhr_database import DhrDatabaseManager
 from utils.logger import logger

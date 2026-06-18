@@ -32,7 +32,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 from ui.dialogs.purchase_order_dialog import PurchaseOrderDialog, _NewOrderDialog  # noqa: E402
 from ui.dialogs.stock_settings_dialog import StockSettingsDialog  # noqa: E402
 from models.repositories.purchase_order_repository import (  # noqa: E402
-    PO_PENDING, PO_PARTIAL, PO_RECEIVED,
+    PO_PENDING, PO_PARTIAL,
 )
 
 app = QApplication.instance() or QApplication(sys.argv)

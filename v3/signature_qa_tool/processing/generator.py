@@ -6,7 +6,6 @@ leveraging the main application's ImageProcessor.
 """
 from PIL import Image
 import os
-import sys
 from datetime import datetime
 
 

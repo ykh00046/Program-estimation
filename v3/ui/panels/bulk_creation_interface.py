@@ -191,10 +191,12 @@ class BulkCreationInterface(QScrollArea):
 
     def _remove_bulk_row(self):
         row = self.bulk_table.currentRow()
-        if row >= 0: self.bulk_table.removeRow(row)
+        if row >= 0:
+            self.bulk_table.removeRow(row)
 
     def _add_mat_row(self, row=None):
-        if row is None: row = self.mat_table.rowCount()
+        if row is None:
+            row = self.mat_table.rowCount()
         self.mat_table.insertRow(row)
         # 3열(이론계량)은 없지만 Base 클래스 호환을 위해
         for c in range(3):
@@ -202,7 +204,8 @@ class BulkCreationInterface(QScrollArea):
 
     def _remove_mat_row(self):
         row = self.mat_table.currentRow()
-        if row >= 0: self.mat_table.removeRow(row)
+        if row >= 0:
+            self.mat_table.removeRow(row)
 
     def _open_record_view(self):
         """DHR 기록 조회 다이얼로그 열기"""

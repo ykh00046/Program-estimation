@@ -12,7 +12,6 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, project_root)
 
 from models.data_manager import DataManager
-from config.settings import DB_FILE # Original DB path to be patched
 from models.database import MixingDatabaseManager
 
 class TestDataIntegration(unittest.TestCase):

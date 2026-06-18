@@ -5,11 +5,10 @@ import os
 import shutil
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
-    QListWidget, QListWidgetItem, QPushButton, QLineEdit,
+    QListWidget, QPushButton, QLineEdit,
     QLabel, QMessageBox, QFileDialog, QInputDialog,
     QDialogButtonBox, QGroupBox
 )
-from PySide6.QtCore import Qt
 from config.config_manager import config
 from config.settings import BASE_PATH
 from utils.logger import logger

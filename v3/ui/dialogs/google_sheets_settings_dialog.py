@@ -5,9 +5,9 @@ Google Sheets 백업 설정을 위한 다이얼로그
 import os
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QCheckBox, QDialogButtonBox, QFileDialog, QMessageBox
+    QCheckBox, QDialogButtonBox, QFileDialog, QMessageBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 
 from config.google_sheets_config import GoogleSheetsConfig
 from ui.components import StyledButton
