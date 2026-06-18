@@ -40,6 +40,15 @@ class RecordDetailDialog(QDialog):
         self.edit_mode = False
         self.setWindowTitle(f"상세 조회 - {lot_data.iloc[0]['product_lot']}")
         self.setGeometry(300, 300, 900, 600)
+        # 모달 top-level이라 부모 스타일을 상속받지 못함 — 테마를 직접 적용
+        # (라벨/콤보/테이블/배경 통일, "알림 박스 글자 안 보임" 해소)
+        try:
+            self.setStyleSheet(
+                UIStyles.get_base_style() + UIStyles.get_input_style()
+                + UIStyles.get_table_style() + UIStyles.get_dialog_style()
+            )
+        except Exception:  # noqa: BLE001 — 스타일 누락 시 기본 표시
+            pass
         self.init_ui()
 
     def init_ui(self):
@@ -369,10 +378,13 @@ class RecordViewDialog(QDialog):
         self.table.setMinimumHeight(180)  # 작은 창에서 버튼 바 우선 보존
         header = self.table.horizontalHeader()
         from PySide6.QtWidgets import QHeaderView
-        for col in (0, 2, 4, 5):  # 선택/작업자/배합량/작업일시
+        # 선택=고정, 레시피=가변(남는 공간 흡수), 나머지=내용 맞춤(글자 잘림 방지).
+        # load_records에서 resizeColumnsToContents를 부르지 않아야 이 모드가 유지됨.
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        self.table.setColumnWidth(0, 44)
+        for col in (1, 2, 4, 5):  # 제품LOT/작업자/배합량/작업일시
             header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
-        for col in (1, 3):        # 제품LOT/레시피
-            header.setSectionResizeMode(col, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # 레시피
         return self.table
 
     def _build_aggregation_group(self):
@@ -384,6 +396,7 @@ class RecordViewDialog(QDialog):
         self.item_combo.setMinimumWidth(250)
         self.item_combo.setEditable(True)
         self.item_combo.setInsertPolicy(QComboBox.NoInsert)
+        self.item_combo.setStyleSheet(UIStyles.get_input_style())  # 투명 콤보 해소
         self.item_combo.lineEdit().setPlaceholderText("품목명 검색...")
         agg_layout.addWidget(self.item_combo)
         agg_btn = QPushButton("집계 실행")
@@ -502,8 +515,8 @@ class RecordViewDialog(QDialog):
                 self.table.setItem(row, 3, QTableWidgetItem(str(record.get('recipe_name', ''))))
                 self.table.setItem(row, 4, QTableWidgetItem(str(record.get('total_amount', ''))))
                 self.table.setItem(row, 5, QTableWidgetItem(f"{record.get('work_date', '')} {record.get('work_time', '')}"))
-            self.table.resizeColumnsToContents()
-            self.table.setColumnWidth(0, 50)
+            # 컬럼 폭은 _build_records_table의 setSectionResizeMode가 관리 — 여기서
+            # resizeColumnsToContents를 부르면 Stretch/내용맞춤 모드와 충돌해 잘림/과폭 발생
             logger.info(f"기록 로드 완료: {len(records)}건")
         except Exception as e:
             logger.error(f"기록 로드 오류: {e}")

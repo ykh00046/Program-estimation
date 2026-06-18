@@ -372,7 +372,6 @@ class UIStyles:
         QTableWidget::item:selected {{
             background-color: {UITheme.ACCENT_RGBA_22};
             color: {UITheme.MINT_ACCENT};
-            border: 2px solid {UITheme.MINT_ACCENT};
         }}
         QTableWidget::item:hover {{
             background-color: {UITheme.ACCENT_RGBA_12};
