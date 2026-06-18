@@ -8,7 +8,7 @@
 
 import os
 
-from typing import List
+from typing import List, Optional
 
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QCompleter, QDateEdit, QDialog,
@@ -355,6 +355,31 @@ class RecordViewDialog(QDialog):
         filter_layout.addWidget(QLabel("종료일:"))
         self.end_date = QDateEdit(calendarPopup=True, date=QDate.currentDate())
         filter_layout.addWidget(self.end_date)
+
+        # 레시피·작업자 필터 (날짜와 AND 동시 적용 = 중복 필터)
+        filter_layout.addWidget(QLabel("레시피:"))
+        self.recipe_filter = QComboBox()
+        self.recipe_filter.setStyleSheet(UIStyles.get_input_style())
+        self.recipe_filter.setMinimumWidth(150)
+        self.recipe_filter.addItem("- 전체 레시피 -")
+        try:
+            self.recipe_filter.addItems(self.data_manager.get_recipe_names())
+        except Exception as e:  # noqa: BLE001 — 목록 로드 실패해도 날짜 조회는 가능
+            logger.warning(f"레시피 필터 목록 로드 실패: {e}")
+        filter_layout.addWidget(self.recipe_filter)
+
+        filter_layout.addWidget(QLabel("작업자:"))
+        self.worker_filter = QComboBox()
+        self.worker_filter.setStyleSheet(UIStyles.get_input_style())
+        self.worker_filter.setMinimumWidth(120)
+        self.worker_filter.addItem("- 전체 작업자 -")
+        try:
+            from config.config_manager import config
+            self.worker_filter.addItems([w for w in config.workers if w])
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"작업자 필터 목록 로드 실패: {e}")
+        filter_layout.addWidget(self.worker_filter)
+
         search_btn = QPushButton("조회")
         search_btn.setStyleSheet(UIStyles.get_secondary_button_style())
         search_btn.clicked.connect(self.load_records)
@@ -362,6 +387,11 @@ class RecordViewDialog(QDialog):
         filter_layout.addStretch()
         filter_group.setLayout(filter_layout)
         return filter_group
+
+    def _selected_filter(self, combo) -> Optional[str]:
+        """필터 콤보의 현재 값 — '- 전체 …' 이면 None(필터 해제)."""
+        text = combo.currentText() if combo else ""
+        return None if (not text or text.startswith("- 전체")) else text
 
     def _build_records_table(self):
         """기록 6컬럼 테이블 (선택/LOT/작업자/레시피/배합량/일시)."""
@@ -503,7 +533,11 @@ class RecordViewDialog(QDialog):
         try:
             start = self.start_date.date().toString("yyyy-MM-dd")
             end = self.end_date.date().toString("yyyy-MM-dd")
-            records = self.data_manager.get_mixing_records(start_date=start, end_date=end)
+            recipe = self._selected_filter(getattr(self, "recipe_filter", None))
+            worker = self._selected_filter(getattr(self, "worker_filter", None))
+            records = self.data_manager.get_mixing_records(
+                start_date=start, end_date=end,
+                worker=worker, recipe_name=recipe, limit=10000)
             self.table.setRowCount(len(records))
             for row, record in enumerate(records):
                 chk_box_item = QTableWidgetItem()
