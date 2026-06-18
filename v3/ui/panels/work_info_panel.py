@@ -30,7 +30,7 @@ class WorkerInputDialog(QDialog):
         self.setStyleSheet(
             UIStyles.get_dialog_style()
             + f"""
-            QLabel {{ color: {UITheme.TEXT_PRIMARY}; font-family: 'Segoe UI', sans-serif; }}
+            QLabel {{ color: {UITheme.TEXT_PRIMARY}; font-family: {UITheme.FONT_FAMILY}; }}
             """
         )
 

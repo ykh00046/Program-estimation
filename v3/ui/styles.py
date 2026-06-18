@@ -52,6 +52,9 @@ class UITheme:
     BORDER_COLOR = "rgba(255, 255, 255, 0.08)"
     BORDER_ACCENT = "rgba(227, 161, 47, 0.2)"
     
+    # 폰트 (SSOT — main.py setFontFamilies와 정렬, 한글 미지원 Bahnschrift 제거)
+    FONT_FAMILY = "'Pretendard', 'Segoe UI', 'Malgun Gothic', 'Noto Sans KR', sans-serif"
+
     # 크기
     DEFAULT_WINDOW_WIDTH = 1200
     DEFAULT_WINDOW_HEIGHT = 800
@@ -68,7 +71,7 @@ class UIStyles:
         return f"""
         /* 전역 폰트 설정 */
         QLabel, QPushButton, QLineEdit, QComboBox, QTableWidget, QTextEdit, QPlainTextEdit {{
-            font-family: 'Bahnschrift', 'Malgun Gothic', 'Segoe UI', sans-serif;
+            font-family: {UITheme.FONT_FAMILY};
             font-size: 14px;
         }}
 
