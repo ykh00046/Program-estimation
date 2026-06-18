@@ -5,12 +5,12 @@ DHR 관리 인터페이스 (사이드바 메뉴용)
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidgetItem, QHeaderView,
-    QMessageBox, QTabWidget, QScrollArea, QDialog
+    QMessageBox, QScrollArea, QDialog
 )
 from PySide6.QtCore import Qt, QDate, QTime
 from PySide6.QtGui import QColor
 
-from ui.components import StyledButton, create_group_box, center_window
+from ui.components import StyledButton, center_window
 from ui.styles import UIStyles, UITheme
 from ui.panels.scan_effects_panel import ScanEffectsPanel
 from ui.panels.signature_panel import SignaturePanel
@@ -64,7 +64,7 @@ class ManualInputInterface(QScrollArea):
         top_layout.addWidget(self._build_product_group())
         root.addLayout(top_layout)
 
-        root.addWidget(self._build_settings_tabs())
+        self._init_settings_panels()  # PDF/서명 설정은 '설정' 메뉴로 일원화 — 화면 미표시
         root.addWidget(self._build_table_group())
         root.addLayout(self._build_bottom_bar())
 
@@ -138,22 +138,16 @@ class ManualInputInterface(QScrollArea):
         product_container.addLayout(product_layout)
         return product_group
 
-    def _build_settings_tabs(self) -> QTabWidget:
-        """PDF 스캔 효과 + 서명 옵션 설정 탭."""
-        tabs = QTabWidget()
-        settings_tab = QWidget()
-        settings_layout = QHBoxLayout()
+    def _init_settings_panels(self) -> None:
+        """PDF/서명 설정은 '설정' 메뉴로 일원화(2026-06-18).
 
+        패널 객체만 생성해 DhrSettingsSyncController 동기화 대상으로 유지하고
+        화면에는 표시하지 않는다(출력 시 설정 페이지 값과 동일하게 사용).
+        """
         self.scan_effects_panel = ScanEffectsPanel()
-        settings_layout.addWidget(create_group_box("PDF 스캔 효과", self.scan_effects_panel))
-
         self.signature_panel = SignaturePanel()
-        settings_layout.addWidget(create_group_box("서명 옵션", self.signature_panel))
-
-        settings_layout.addStretch()
-        settings_tab.setLayout(settings_layout)
-        tabs.addTab(settings_tab, "PDF/서명 설정")
-        return tabs
+        self.scan_effects_panel.hide()
+        self.signature_panel.hide()
 
     def _build_table_group(self) -> CardWidget:
         """자재 입력 테이블 카드 (붙여넣기 지원 + 행 버튼)."""
