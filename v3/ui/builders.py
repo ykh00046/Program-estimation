@@ -64,6 +64,41 @@ class RecordsHostPage(QScrollArea):
             self._view.load_records()
 
 
+class MixingRecipeHostPage(QScrollArea):
+    """배합 레시피 관리 임베드 페이지 (2026-06-18).
+
+    별도 창 대신 사이드바 페이지에 RecipeEditDialog를 직접 표시한다.
+    DHR 레시피(RecipeManagementInterface)와 무관한 '기존 배합 레시피' 전용.
+    """
+
+    def __init__(self, window):
+        super().__init__()
+        self.setObjectName("MixingRecipePage")
+        self.setWidgetResizable(True)
+        self.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+        self._window = window
+        self._view = None
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        try:
+            self._ensure_view()
+        except Exception as e:  # noqa: BLE001 — 페이지 전환이 앱을 죽이지 않도록
+            from utils.logger import logger
+            logger.error(f"레시피 관리 페이지 로드 실패: {e}", exc_info=True)
+
+    def _ensure_view(self):
+        from ui.dialogs.recipe_edit_dialog import RecipeEditDialog
+        if self._view is None:
+            self._view = RecipeEditDialog(self._window.data_manager, parent=self, embedded=True)
+            # QDialog window 플래그 제거 + 명시 show (기록 조회 임베드와 동일 패턴)
+            self._view.setWindowFlags(Qt.Widget)
+            self.setWidget(self._view)
+            self._view.show()
+        else:
+            self._view._reload_list()
+
+
 @dataclass
 class MixingPageRefs:
     save_btn: StyledButton
@@ -272,6 +307,8 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
     )
     records_page = RecordsHostPage(window)
     window.records_host = records_page
+    mixing_recipe_host = MixingRecipeHostPage(window)
+    window.mixing_recipe_host = mixing_recipe_host
     worker_page = build_action_page(
         "작업자 변경",
         "현재 작업자를 변경합니다.",
@@ -290,6 +327,7 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
     window.navigationInterface.addSeparator()
     # 2군: 관리 — DHR 관리 / 수기 입력 / 일괄 생성 / 대시보드 / 설정
     window.addSubInterface(recipe_interface, FIF.LIBRARY, "DHR 관리")
+    window.addSubInterface(mixing_recipe_host, FIF.BOOK_SHELF, "레시피 관리")
     window.addSubInterface(manual_interface, FIF.EDIT, "수기 입력")
     window.addSubInterface(bulk_interface, FIF.PASTE, "일괄 생성")
     window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")

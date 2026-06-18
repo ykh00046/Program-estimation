@@ -27,9 +27,10 @@ _RATIO_SUM_TOLERANCE = 0.01
 class RecipeEditDialog(QDialog):
     """배합 레시피 편집 다이얼로그."""
 
-    def __init__(self, data_manager, parent=None):
+    def __init__(self, data_manager, parent=None, embedded=False):
         super().__init__(parent)
         self.data_manager = data_manager
+        self._embedded = bool(embedded)
         self.setWindowTitle("배합 레시피 편집")
         self.setMinimumSize(760, 520)
         try:
@@ -38,6 +39,12 @@ class RecipeEditDialog(QDialog):
             pass
         self._init_ui()
         self._reload_list()
+
+    def reject(self):
+        """임베드 모드에선 ESC가 페이지를 숨기지 않도록 무시한다."""
+        if self._embedded:
+            return
+        super().reject()
 
     # ------------------------------------------------------------------
     # UI
@@ -124,6 +131,11 @@ class RecipeEditDialog(QDialog):
         self.import_btn.clicked.connect(self._on_import_excel)
         row.addWidget(self.import_btn)
 
+        self.export_excel_btn = QPushButton("Excel로 내보내기")
+        self.export_excel_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+        self.export_excel_btn.clicked.connect(self._on_export_excel)
+        row.addWidget(self.export_excel_btn)
+
         self.delete_btn = QPushButton("레시피 삭제")
         self.delete_btn.setStyleSheet(UIStyles.get_secondary_button_style())
         self.delete_btn.clicked.connect(self._on_delete)
@@ -136,10 +148,11 @@ class RecipeEditDialog(QDialog):
         self.save_btn.clicked.connect(self._on_save)
         row.addWidget(self.save_btn)
 
-        close_btn = QPushButton("닫기")
-        close_btn.setStyleSheet(UIStyles.get_secondary_button_style())
-        close_btn.clicked.connect(self.accept)
-        row.addWidget(close_btn)
+        if not self._embedded:
+            close_btn = QPushButton("닫기")
+            close_btn.setStyleSheet(UIStyles.get_secondary_button_style())
+            close_btn.clicked.connect(self.accept)
+            row.addWidget(close_btn)
         return row
 
     # ------------------------------------------------------------------
@@ -314,3 +327,18 @@ class RecipeEditDialog(QDialog):
             return
         QMessageBox.information(self, "가져오기 완료", f"{imported}종의 레시피를 가져왔습니다.")
         self._reload_list()
+
+    def _on_export_excel(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getSaveFileName(
+            self, "레시피 Excel로 내보내기", "레시피_export.xlsx", "Excel 파일 (*.xlsx)")
+        if not path:
+            return
+        try:
+            count = self.data_manager.export_recipes_to_excel(path)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"레시피 Excel 내보내기 실패: {e}", exc_info=True)
+            QMessageBox.warning(self, "내보내기 실패", "Excel 내보내기 중 오류가 발생했습니다.")
+            return
+        QMessageBox.information(self, "내보내기 완료",
+                               f"{count}종의 레시피를 내보냈습니다.\n{path}")

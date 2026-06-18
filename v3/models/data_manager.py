@@ -611,6 +611,28 @@ class DataManager:
             logger.info(f"레시피 Excel 시드: {len(excel_recipes)}종 → DB")
         return len(excel_recipes)
 
+    def export_recipes_to_excel(self, output_path: str) -> int:
+        """현재 배합 레시피(SSOT=DB)를 Excel로 추출한다. 반환: 추출 레시피 종수.
+
+        레시피.xlsx와 동일 컬럼(레시피/품목코드/품목명/배합비율/순서)으로 저장해
+        seed_recipes_from_excel과 왕복 호환된다.
+        """
+        rows = []
+        names = self.get_recipe_names()
+        for name in names:
+            for order, m in enumerate(self.get_recipe_items(name), start=1):
+                rows.append({
+                    '레시피': name,
+                    '품목코드': m.get('품목코드', ''),
+                    '품목명': m.get('품목명', ''),
+                    '배합비율': m.get('배합비율', 0.0),
+                    '순서': m.get('순서', order),
+                })
+        df = pd.DataFrame(rows, columns=['레시피', '품목코드', '품목명', '배합비율', '순서'])
+        df.to_excel(output_path, index=False, engine='openpyxl')
+        logger.info(f"레시피 Excel 추출 완료: {len(names)}종 → {output_path}")
+        return len(names)
+
     def save_recipe(self, recipe_name: str, materials: List[Dict]) -> None:
         """배합 레시피 저장 (신규/수정 — recipes 테이블 SSOT, PDCA #37)."""
         return self.db_manager.save_recipe(recipe_name, materials)
