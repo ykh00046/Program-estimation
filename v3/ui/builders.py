@@ -319,15 +319,15 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
     settings_page = build_settings_page(window)
 
     # --- 사이드바 등록 순서 (사용자 지정, 2026-06-18) ---
-    # 1군: 일상 작업 — 배합 / 기록 조회 / 작업자 변경
+    # 1군: 일상 작업 — 배합 / 기록 조회 / 레시피 관리 / 작업자 변경
     window.addSubInterface(mixing, FIF.MIX_VOLUMES, "배합")
     window.addSubInterface(records_page, FIF.HISTORY, "기록 조회")
+    window.addSubInterface(mixing_recipe_host, FIF.BOOK_SHELF, "레시피 관리")
     window.addSubInterface(worker_page, FIF.PEOPLE, "작업자 변경")
     # 그룹 간 한 칸 간격
     window.navigationInterface.addSeparator()
     # 2군: 관리 — DHR 관리 / 수기 입력 / 일괄 생성 / 대시보드 / 설정
     window.addSubInterface(recipe_interface, FIF.LIBRARY, "DHR 관리")
-    window.addSubInterface(mixing_recipe_host, FIF.BOOK_SHELF, "레시피 관리")
     window.addSubInterface(manual_interface, FIF.EDIT, "수기 입력")
     window.addSubInterface(bulk_interface, FIF.PASTE, "일괄 생성")
     window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")

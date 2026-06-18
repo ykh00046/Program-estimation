@@ -279,7 +279,7 @@ class RecordDetailDialog(QDialog):
         self._exporting_lot = product_lot
         start_worker(
             self, self.data_manager.export_existing_record,
-            args=(product_lot, self.effects_params),
+            args=(product_lot, self.effects_params or {}),
             use_com=True,
             busy_widgets=(self.export_btn,),
             on_result=self._on_export_done,
@@ -370,6 +370,7 @@ class RecordViewDialog(QDialog):
             self.recipe_filter.addItems(self.data_manager.get_recipe_names())
         except Exception as e:  # noqa: BLE001 — 목록 로드 실패해도 날짜 조회는 가능
             logger.warning(f"레시피 필터 목록 로드 실패: {e}")
+        self.recipe_filter.currentIndexChanged.connect(self.load_records)  # 변경 즉시 적용
         filter_layout.addWidget(self.recipe_filter)
 
         filter_layout.addWidget(QLabel("작업자:"))
@@ -382,6 +383,7 @@ class RecordViewDialog(QDialog):
             self.worker_filter.addItems([w for w in config.workers if w])
         except Exception as e:  # noqa: BLE001
             logger.warning(f"작업자 필터 목록 로드 실패: {e}")
+        self.worker_filter.currentIndexChanged.connect(self.load_records)  # 변경 즉시 적용
         filter_layout.addWidget(self.worker_filter)
 
         search_btn = QPushButton("조회")
@@ -396,6 +398,15 @@ class RecordViewDialog(QDialog):
         """필터 콤보의 현재 값 — '- 전체 …' 이면 None(필터 해제)."""
         text = combo.currentText() if combo else ""
         return None if (not text or text.startswith("- 전체")) else text
+
+    def eventFilter(self, obj, event):
+        """품목 콤보의 lineEdit 클릭 시 편집 대신 드롭다운을 연다."""
+        from PySide6.QtCore import QEvent
+        if (hasattr(self, "item_combo") and obj is self.item_combo.lineEdit()
+                and event.type() == QEvent.MouseButtonPress):
+            self.item_combo.showPopup()
+            return True
+        return super().eventFilter(obj, event)
 
     def _build_records_table(self):
         """기록 6컬럼 테이블 (선택/LOT/작업자/레시피/배합량/일시)."""
@@ -432,6 +443,8 @@ class RecordViewDialog(QDialog):
         self.item_combo.setInsertPolicy(QComboBox.NoInsert)
         self.item_combo.setStyleSheet(UIStyles.get_input_style())  # 투명 콤보 해소
         self.item_combo.lineEdit().setPlaceholderText("품목명 검색...")
+        # 박스(lineEdit) 클릭 시 텍스트 편집 대신 드롭다운 목록을 연다
+        self.item_combo.lineEdit().installEventFilter(self)
         agg_layout.addWidget(self.item_combo)
         agg_btn = QPushButton("집계 실행")
         agg_btn.clicked.connect(self.aggregate_by_item)

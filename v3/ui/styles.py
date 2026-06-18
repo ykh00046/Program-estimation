@@ -104,13 +104,22 @@ class UIStyles:
         }}
 
         QMessageBox {{
-            background-color: #F5F7FA;
+            background-color: {UITheme.SURFACE_ALT};
         }}
         QMessageBox QLabel {{
-            color: #111111;
+            color: {UITheme.TEXT_PRIMARY};
+            background-color: transparent;
         }}
         QMessageBox QPushButton, QMessageBox QAbstractButton {{
-            color: #111111;
+            color: {UITheme.TEXT_PRIMARY};
+            background-color: {UITheme.SURFACE_DARK};
+            border: 1px solid {UITheme.BORDER_COLOR};
+            border-radius: 6px;
+            padding: 6px 18px;
+            min-width: 64px;
+        }}
+        QMessageBox QPushButton:hover {{
+            background-color: {UITheme.ACCENT_RGBA_12};
         }}
 
         QTabWidget::pane {{
