@@ -63,3 +63,14 @@ v3/config/config.json
 *.jpg
 *.jpeg
 
+# Deploy packages (재빌드/deploy.py 산출물 — 커밋 금지)
+v3/DHR_Generator_v*/
+v3/DHR_Generator_v*.zip
+*.zip
+
+# Visual QA captures (visual_qa_capture.py 산출물)
+v3/qa_screens/
+
+# bkit local audit logs
+.bkit/audit/
+
