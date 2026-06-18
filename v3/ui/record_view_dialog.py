@@ -107,7 +107,11 @@ class RecordDetailDialog(QDialog):
             self.table.setItem(row_idx, 4, QTableWidgetItem(str(getattr(record_tuple, 'theory_amount', ''))))
             self.table.setItem(row_idx, 5, QTableWidgetItem(str(getattr(record_tuple, 'actual_amount', ''))))
 
-        self.table.resizeColumnsToContents()
+        from PySide6.QtWidgets import QHeaderView
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)  # 헤더+내용 최대폭 — 헤더 잘림 방지
+        header.setSectionResizeMode(1, QHeaderView.Stretch)        # 품목명 가변
+        self.table.verticalHeader().setVisible(False)
         detail_layout.addWidget(self.table)
         detail_group.setLayout(detail_layout)
         return detail_group
