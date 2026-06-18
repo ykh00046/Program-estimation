@@ -24,8 +24,10 @@ class SidebarHoverController(QObject):
         self._collapse_timer.setInterval(200)
         self._collapse_timer.timeout.connect(self.collapse_after_hover)
 
+        # 폴링 주기: 120ms→200ms. 페이지 전환 애니메이션과의 메인 스레드 경쟁을
+        # 줄여 전환 시 끊김 완화(반응성 차이는 체감 미미).
         self._poll_timer = QTimer(window)
-        self._poll_timer.setInterval(120)
+        self._poll_timer.setInterval(200)
         self._poll_timer.timeout.connect(self._poll_state)
 
     def is_enabled(self) -> bool:
@@ -119,6 +121,27 @@ class SidebarHoverController(QObject):
         if not self._collapse_timer.isActive():
             self._collapse_timer.start()
 
+    def _cursor_in_sidebar_rect(self) -> bool:
+        """nav/panel의 전역 rect만 검사하는 경량 판정(자식 위젯 순회 없음).
+
+        미확장 상태의 enter fallback 전용 — 평상시(대부분의 시간) 폴링 비용을
+        rect 검사 2회로 제한해 메인 스레드 부하를 최소화한다. 정밀 leave 감지가
+        필요한 확장 상태에서는 _is_cursor_in_sidebar(자식 underMouse 포함)를 쓴다.
+        """
+        nav = getattr(self._window, "navigationInterface", None)
+        panel = getattr(nav, "panel", None) if nav else None
+        if nav is None or panel is None:
+            return False
+
+        global_pos = QCursor.pos()
+        for widget in (panel, nav):
+            try:
+                if widget.isVisible() and widget.rect().contains(widget.mapFromGlobal(global_pos)):
+                    return True
+            except RuntimeError:
+                continue
+        return False
+
     def _is_cursor_in_sidebar(self) -> bool:
         nav = getattr(self._window, "navigationInterface", None)
         panel = getattr(nav, "panel", None) if nav else None
@@ -156,10 +179,15 @@ class SidebarHoverController(QObject):
         if not self._enabled or not self._window.isVisible():
             return
 
-        if self._is_cursor_in_sidebar():
-            self._on_hover_enter()
-        elif self._hover_expanded:
-            self._on_hover_leave()
+        if self._hover_expanded:
+            # 확장 상태: 정밀 leave 감지(자식 underMouse 순회 포함)
+            if not self._is_cursor_in_sidebar():
+                self._on_hover_leave()
+        else:
+            # 미확장 평상시: enter는 이벤트 필터(Enter)가 1차 담당, 폴링은 경량 rect
+            # 검사로 보강만 — 매 틱 전체 위젯 순회를 피해 상시 부하를 제거한다.
+            if self._cursor_in_sidebar_rect():
+                self._on_hover_enter()
 
     def collapse_after_hover(self, force: bool = False) -> None:
         if not self._hover_expanded:
