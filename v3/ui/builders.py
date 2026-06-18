@@ -254,45 +254,24 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
     from ui.panels.recipe_management_interface import RecipeManagementInterface
     from ui.panels.bulk_creation_interface import BulkCreationInterface
 
-    # 1. 배합 페이지 (메인 작업 화면)
+    # --- 패널/페이지 생성 (등록 순서와 분리) ---
     mixing, mixing_page_refs = build_mixing_page(window)
-    window.addSubInterface(mixing, FIF.MIX_VOLUMES, "배합")
-
-    # 2. 수기 입력
     manual_interface = ManualInputInterface(
         window,
         dhr_db=window.services.dhr_db,
         lot_manager=window.services.lot_manager,
     )
-    window.addSubInterface(manual_interface, FIF.EDIT, "수기 입력")
-
-    # 3. 일괄 생성
     bulk_interface = BulkCreationInterface(
         window,
         dhr_db=window.services.dhr_db,
         lot_manager=window.services.lot_manager,
     )
-    window.addSubInterface(bulk_interface, FIF.PASTE, "일괄 생성")
-
-    # 4. DHR 관리
     recipe_interface = RecipeManagementInterface(
         window,
         dhr_db=window.services.dhr_db,
     )
-    window.addSubInterface(recipe_interface, FIF.LIBRARY, "DHR 관리")
-
-    # 4-2. 대시보드 (PDCA #17)
-    window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")
-
-    # 5. 기록 조회 — 별도 창 대신 페이지에 직접 임베드 (PDCA #38)
     records_page = RecordsHostPage(window)
     window.records_host = records_page
-    window.addSubInterface(records_page, FIF.HISTORY, "기록 조회")
-
-    # 6. 설정 페이지
-    window.addSubInterface(build_settings_page(window), FIF.SETTING, "설정")
-
-    # 7. 작업자 변경
     worker_page = build_action_page(
         "작업자 변경",
         "현재 작업자를 변경합니다.",
@@ -300,7 +279,21 @@ def register_sidebar_interfaces(window) -> SidebarRefs:
         window._request_worker_and_refresh,
         "WorkerPage",
     )
+    settings_page = build_settings_page(window)
+
+    # --- 사이드바 등록 순서 (사용자 지정, 2026-06-18) ---
+    # 1군: 일상 작업 — 배합 / 기록 조회 / 작업자 변경
+    window.addSubInterface(mixing, FIF.MIX_VOLUMES, "배합")
+    window.addSubInterface(records_page, FIF.HISTORY, "기록 조회")
     window.addSubInterface(worker_page, FIF.PEOPLE, "작업자 변경")
+    # 그룹 간 한 칸 간격
+    window.navigationInterface.addSeparator()
+    # 2군: 관리 — DHR 관리 / 수기 입력 / 일괄 생성 / 대시보드 / 설정
+    window.addSubInterface(recipe_interface, FIF.LIBRARY, "DHR 관리")
+    window.addSubInterface(manual_interface, FIF.EDIT, "수기 입력")
+    window.addSubInterface(bulk_interface, FIF.PASTE, "일괄 생성")
+    window.addSubInterface(window.dashboard_panel, FIF.PIE_SINGLE, "대시보드")
+    window.addSubInterface(settings_page, FIF.SETTING, "설정")
 
     return SidebarRefs(
         mixing_page_refs=mixing_page_refs,
