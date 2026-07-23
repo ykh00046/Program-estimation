@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "lastUpdated": "2026-06-10T00:00:00.000Z",
+  "lastUpdated": "2026-06-18T09:00:00.000Z",
   "activeFeatures": [],
   "primaryFeature": null,
   "features": {
@@ -261,6 +261,76 @@
         "report": "2026-06-10T00:00:00.000Z"
       },
       "automationLevel": 2
+    },
+    "unsaved-recipe-change-guard": {
+      "phase": "completed",
+      "cycle": 40,
+      "matchRate": 100,
+      "iterationCount": 1,
+      "qaStatus": "PASS",
+      "createdAt": "2026-06-18T09:00:00.000Z",
+      "completedAt": "2026-06-18T09:00:00.000Z",
+      "summary": "PDCA #40 completed: recipe editor dirty-state guard for selection/new/close flows, 5 new UI tests, 381/381 tests pass, Match 100% after one cleanup iteration.",
+      "stateMachine": {
+        "currentState": "completed",
+        "previousState": "qa",
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": 100,
+        "conventionCompliance": 100,
+        "apiCompliance": 100,
+        "cycleTimeMs": null,
+        "iterationEfficiency": 100
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-18T09:00:00.000Z",
+        "design": "2026-06-18T09:00:00.000Z",
+        "do": "2026-06-18T09:00:00.000Z",
+        "check": "2026-06-18T09:00:00.000Z",
+        "act": "2026-06-18T09:00:00.000Z",
+        "qa": "2026-06-18T09:00:00.000Z",
+        "report": "2026-06-18T09:00:00.000Z"
+      },
+      "automationLevel": 2
+    },
+    "backup_retry_control": {
+      "phase": "completed",
+      "cycle": 41,
+      "matchRate": 100,
+      "iterationCount": 1,
+      "qaStatus": "PASS",
+      "createdAt": "2026-06-18T12:00:00.000Z",
+      "completedAt": "2026-06-18T12:00:00.000Z",
+      "summary": "PDCA #41 completed: admin backup settings entry, pending queue count, async manual retry, close guard; 5 new UI tests, 384/384 tests pass, Match 100% after one race-condition iteration.",
+      "stateMachine": {
+        "currentState": "completed",
+        "previousState": "qa",
+        "stateHistory": [],
+        "retryCount": 0,
+        "maxRetries": 5,
+        "circuitBreakerOpen": false
+      },
+      "metrics": {
+        "qualityScore": 100,
+        "conventionCompliance": 100,
+        "apiCompliance": 100,
+        "cycleTimeMs": null,
+        "iterationEfficiency": 100
+      },
+      "phaseTimestamps": {
+        "plan": "2026-06-18T12:00:00.000Z",
+        "design": "2026-06-18T12:00:00.000Z",
+        "do": "2026-06-18T12:00:00.000Z",
+        "check": "2026-06-18T12:00:00.000Z",
+        "act": "2026-06-18T12:00:00.000Z",
+        "qa": "2026-06-18T12:00:00.000Z",
+        "report": "2026-06-18T12:00:00.000Z"
+      },
+      "automationLevel": 2
     }
   },
   "pipeline": {
@@ -417,6 +487,18 @@
       "action": "archive",
       "timestamp": "2026-06-10T00:00:00.000Z",
       "result": "success (364/364 tests, 8539d8c)"
+    },
+    {
+      "feature": "unsaved-recipe-change-guard",
+      "action": "plan-design-do-check-iterate-qa-report",
+      "timestamp": "2026-06-18T09:00:00.000Z",
+      "result": "completed (Match 100%, QA PASS, 381/381 tests)"
+    },
+    {
+      "feature": "backup_retry_control",
+      "action": "plan-design-do-check-iterate-qa-report",
+      "timestamp": "2026-06-18T12:00:00.000Z",
+      "result": "completed (Match 100%, QA PASS, 384/384 tests)"
     }
   ],
   "stateMachine": {

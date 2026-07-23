@@ -31,6 +31,7 @@ class RecipeEditDialog(QDialog):
         super().__init__(parent)
         self.data_manager = data_manager
         self._embedded = bool(embedded)
+        self._clean_snapshot = None
         self.setWindowTitle("배합 레시피 편집")
         self.setMinimumSize(760, 520)
         try:
@@ -39,12 +40,28 @@ class RecipeEditDialog(QDialog):
             pass
         self._init_ui()
         self._reload_list()
+        self._mark_clean()
 
     def reject(self):
         """임베드 모드에선 ESC가 페이지를 숨기지 않도록 무시한다."""
         if self._embedded:
             return
+        if not self._confirm_discard_changes():
+            return
         super().reject()
+
+    def accept(self):
+        """독립 창의 닫기 버튼에서도 미저장 변경을 보호한다."""
+        if not self._confirm_discard_changes():
+            return
+        super().accept()
+
+    def closeEvent(self, event):
+        """창 제목 표시줄의 닫기 동작에서도 동일한 보호 규칙을 적용한다."""
+        if self._embedded or self._confirm_discard_changes():
+            event.accept()
+        else:
+            event.ignore()
 
     # ------------------------------------------------------------------
     # UI
@@ -73,7 +90,7 @@ class RecipeEditDialog(QDialog):
         box.addWidget(title)
 
         self.recipe_list = QListWidget()
-        self.recipe_list.currentTextChanged.connect(self._on_recipe_selected)
+        self.recipe_list.currentItemChanged.connect(self._on_recipe_item_changed)
         box.addWidget(self.recipe_list)
 
         self.new_btn = QPushButton("새 레시피")
@@ -180,11 +197,26 @@ class RecipeEditDialog(QDialog):
         self.name_edit.setText(name)
         items = self.data_manager.get_recipe_items(name)
         self._fill_table(items)
+        self._mark_clean()
+
+    def _on_recipe_item_changed(self, current, previous) -> None:
+        """선택 전환 전에 현재 폼의 미저장 변경을 확인한다."""
+        if current is None:
+            return
+        if previous is not None and not self._confirm_discard_changes():
+            self.recipe_list.blockSignals(True)
+            self.recipe_list.setCurrentItem(previous)
+            self.recipe_list.blockSignals(False)
+            return
+        self._on_recipe_selected(current.text())
 
     def _on_new_recipe(self) -> None:
+        if not self._confirm_discard_changes():
+            return
         self.recipe_list.clearSelection()
         self.name_edit.clear()
         self._fill_table([])
+        self._mark_clean()
         self.name_edit.setFocus()
 
     def _fill_table(self, items: List[Dict]) -> None:
@@ -216,6 +248,33 @@ class RecipeEditDialog(QDialog):
     def _cell_text(self, row: int, col: int) -> str:
         item = self.table.item(row, col)
         return item.text().strip() if item is not None else ""
+
+    def _form_snapshot(self):
+        """표시 형식 차이를 제거한 현재 편집 상태를 불변 값으로 만든다."""
+        rows = tuple(
+            tuple(self._cell_text(row, col) for col in (_COL_CODE, _COL_NAME, _COL_RATIO))
+            for row in range(self.table.rowCount())
+        )
+        return self.name_edit.text().strip(), rows
+
+    def _mark_clean(self) -> None:
+        self._clean_snapshot = self._form_snapshot()
+
+    def _has_unsaved_changes(self) -> bool:
+        return self._clean_snapshot is not None and self._form_snapshot() != self._clean_snapshot
+
+    def _confirm_discard_changes(self) -> bool:
+        """변경이 있으면 폐기 여부를 묻고, 계속 진행 가능 여부를 반환한다."""
+        if not self._has_unsaved_changes():
+            return True
+        reply = QMessageBox.question(
+            self,
+            "미저장 변경",
+            "저장하지 않은 변경 사항이 있습니다. 변경을 버리고 계속하시겠습니까?",
+            QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Cancel,
+        )
+        return reply == QMessageBox.Discard
 
     def _collect_materials(self) -> List[Dict]:
         """테이블에서 자재 목록 수집 (빈 행 스킵). 비율 비숫자는 ValueError."""
@@ -288,6 +347,7 @@ class RecipeEditDialog(QDialog):
             logger.error(f"레시피 저장 실패: {e}", exc_info=True)
             QMessageBox.warning(self, "저장 실패", "레시피 저장 중 오류가 발생했습니다.")
             return
+        self._mark_clean()
         QMessageBox.information(self, "저장 완료",
                                 f"레시피 '{name}'이(가) 저장되었습니다. ({len(materials)}개 자재)")
         self._reload_list(select=name)

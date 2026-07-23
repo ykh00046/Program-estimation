@@ -13,6 +13,7 @@ from config.config_manager import config
 from config.settings import BASE_PATH
 from utils.logger import logger
 from ui.panels.admin_signature_panel import SignatureSettingsPanel
+from ui.dialogs.google_sheets_settings_dialog import GoogleSheetsSettingsDialog
 
 
 class PasswordDialog(QDialog):
@@ -147,6 +148,9 @@ class AdminDialog(QDialog):
         change_pw_btn = QPushButton("비밀번호 변경")
         change_pw_btn.clicked.connect(self._change_admin_password)
         admin_layout.addWidget(change_pw_btn)
+        self.google_sheets_btn = QPushButton("Google Sheets 백업 설정")
+        self.google_sheets_btn.clicked.connect(self._open_google_sheets_settings)
+        admin_layout.addWidget(self.google_sheets_btn)
         admin_layout.addStretch()
         layout.addWidget(admin_box)
 
@@ -335,6 +339,11 @@ class AdminDialog(QDialog):
             QMessageBox.information(self, "완료", "비밀번호가 변경되었습니다.")
         else:
             QMessageBox.critical(self, "오류", "비밀번호 변경 중 오류가 발생했습니다.")
+
+    def _open_google_sheets_settings(self):
+        """실패 백업 상태와 재시도 제어를 포함한 설정 화면을 연다."""
+        # Design Ref: §2 — 제거됐던 설정 진입점을 관리자 범위로 복원한다.
+        GoogleSheetsSettingsDialog(self).exec()
 
     def _save_and_close(self):
         """저장 후 닫기"""

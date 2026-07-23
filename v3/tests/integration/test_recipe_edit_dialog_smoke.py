@@ -45,6 +45,10 @@ def _make_dm(names=("R1", "R2"), items=_ITEMS):
 
 class RecipeEditDialogSmokeTests(unittest.TestCase):
 
+    @staticmethod
+    def _edit_name(dlg, value="changed"):
+        dlg.name_edit.setText(value)
+
     def test_empty_list_no_crash(self):
         dlg = RecipeEditDialog(_make_dm(names=()))
         self.assertEqual(dlg.recipe_list.count(), 0)
@@ -116,6 +120,61 @@ class RecipeEditDialogSmokeTests(unittest.TestCase):
             dlg = RecipeEditDialog(dm)
             dlg._on_import_excel()
         dm.seed_recipes_from_excel.assert_not_called()
+
+    def test_recipe_switch_cancel_preserves_current_edits_and_selection(self):
+        dm = _make_dm()
+        with patch("ui.dialogs.recipe_edit_dialog.QMessageBox") as MB:
+            MB.Discard, MB.Cancel = 1, 0
+            MB.question.return_value = MB.Cancel
+            dlg = RecipeEditDialog(dm)
+            dlg.recipe_list.setCurrentRow(0)
+            self._edit_name(dlg)
+            dlg.recipe_list.setCurrentRow(1)
+        self.assertEqual(dlg.recipe_list.currentItem().text(), "R1")
+        self.assertEqual(dlg.name_edit.text(), "changed")
+
+    def test_recipe_switch_discard_loads_new_selection(self):
+        dm = _make_dm()
+        with patch("ui.dialogs.recipe_edit_dialog.QMessageBox") as MB:
+            MB.Discard, MB.Cancel = 1, 0
+            MB.question.return_value = MB.Discard
+            dlg = RecipeEditDialog(dm)
+            dlg.recipe_list.setCurrentRow(0)
+            self._edit_name(dlg)
+            dlg.recipe_list.setCurrentRow(1)
+        self.assertEqual(dlg.recipe_list.currentItem().text(), "R2")
+        self.assertEqual(dlg.name_edit.text(), "R2")
+
+    def test_new_recipe_cancel_preserves_edits(self):
+        dm = _make_dm()
+        with patch("ui.dialogs.recipe_edit_dialog.QMessageBox") as MB:
+            MB.Discard, MB.Cancel = 1, 0
+            MB.question.return_value = MB.Cancel
+            dlg = RecipeEditDialog(dm)
+            dlg.recipe_list.setCurrentRow(0)
+            self._edit_name(dlg)
+            dlg._on_new_recipe()
+        self.assertEqual(dlg.name_edit.text(), "changed")
+
+    def test_reject_cancel_keeps_dialog_open(self):
+        dm = _make_dm()
+        with patch("ui.dialogs.recipe_edit_dialog.QMessageBox") as MB:
+            MB.Discard, MB.Cancel = 1, 0
+            MB.question.return_value = MB.Cancel
+            dlg = RecipeEditDialog(dm)
+            dlg.recipe_list.setCurrentRow(0)
+            self._edit_name(dlg)
+            with patch.object(RecipeEditDialog.__mro__[1], "reject") as base_reject:
+                dlg.reject()
+        base_reject.assert_not_called()
+
+    def test_saved_form_is_clean(self):
+        dm = _make_dm()
+        with patch("ui.dialogs.recipe_edit_dialog.QMessageBox") as MB:
+            dlg = RecipeEditDialog(dm)
+            dlg.recipe_list.setCurrentRow(0)
+            dlg._on_save()
+            self.assertFalse(dlg._has_unsaved_changes())
 
 
 if __name__ == "__main__":
